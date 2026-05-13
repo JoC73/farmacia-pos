@@ -1,0 +1,56 @@
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Nueva Categoría
+        </h2>
+    </x-slot>
+
+    <div class="py-6">
+        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+
+            <div class="bg-white shadow rounded p-6">
+
+                <form method="POST" action="{{ route('categorias.store') }}">
+                    @csrf
+
+                    <div class="mb-4">
+                        <label class="block font-medium">Nombre</label>
+                        <input type="text"
+                               name="nombre"
+                               value="{{ old('nombre') }}"
+                               class="w-full border-gray-300 rounded mt-1">
+
+                        @error('nombre')
+                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block font-medium">Descripción</label>
+                        <textarea name="descripcion"
+                                  class="w-full border-gray-300 rounded mt-1">{{ old('descripcion') }}</textarea>
+
+                        @error('descripcion')
+                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="flex justify-between">
+                        <a href="{{ route('categorias.index') }}"
+                           class="px-4 py-2 bg-gray-500 text-white rounded">
+                            Cancelar
+                        </a>
+
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-600 text-white rounded">
+                            Guardar
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+    </div>
+</x-app-layout>
