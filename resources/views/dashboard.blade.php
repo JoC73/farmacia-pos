@@ -1,65 +1,65 @@
 <x-app-layout>
 
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        <h2 class="font-semibold text-lg sm:text-xl text-gray-800 leading-tight">
             Dashboard Gerencial
         </h2>
     </x-slot>
 
-    <div class="py-6">
+    <div class="py-4 sm:py-6">
 
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             <!-- TARJETAS -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
 
                 <!-- VENTAS HOY -->
-                <div class="bg-white shadow rounded p-6 border-l-4 border-green-500">
+                <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-green-500">
 
-                    <div class="text-sm text-gray-500">
+                    <div class="text-xs sm:text-sm text-gray-500">
                         Ventas Hoy
                     </div>
 
-                    <div class="text-3xl font-bold text-green-600 mt-2">
+                    <div class="text-2xl sm:text-3xl font-bold text-green-600 mt-2 leading-tight">
                         Q {{ number_format($ventasHoy, 2) }}
                     </div>
 
                 </div>
 
                 <!-- VENTAS MES -->
-                <div class="bg-white shadow rounded p-6 border-l-4 border-blue-500">
+                <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-blue-500">
 
-                    <div class="text-sm text-gray-500">
+                    <div class="text-xs sm:text-sm text-gray-500">
                         Ventas del Mes
                     </div>
 
-                    <div class="text-3xl font-bold text-blue-600 mt-2">
+                    <div class="text-2xl sm:text-3xl font-bold text-blue-600 mt-2 leading-tight">
                         Q {{ number_format($ventasMes, 2) }}
                     </div>
 
                 </div>
 
                 <!-- COMPRAS MES -->
-                <div class="bg-white shadow rounded p-6 border-l-4 border-yellow-500">
+                <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-yellow-500">
 
-                    <div class="text-sm text-gray-500">
+                    <div class="text-xs sm:text-sm text-gray-500">
                         Compras del Mes
                     </div>
 
-                    <div class="text-3xl font-bold text-yellow-600 mt-2">
+                    <div class="text-2xl sm:text-3xl font-bold text-yellow-600 mt-2 leading-tight">
                         Q {{ number_format($comprasMes, 2) }}
                     </div>
 
                 </div>
 
                 <!-- CAJAS ABIERTAS -->
-                <div class="bg-white shadow rounded p-6 border-l-4 border-red-500">
+                <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-red-500">
 
-                    <div class="text-sm text-gray-500">
+                    <div class="text-xs sm:text-sm text-gray-500">
                         Cajas Abiertas
                     </div>
 
-                    <div class="text-3xl font-bold text-red-600 mt-2">
+                    <div class="text-2xl sm:text-3xl font-bold text-red-600 mt-2 leading-tight">
                         {{ $cajasAbiertas }}
                     </div>
 
@@ -68,15 +68,15 @@
             </div>
 
             <!-- TOP PRODUCTOS -->
-            <div class="bg-white shadow rounded p-6 mb-6">
+            <div class="bg-white shadow rounded p-4 sm:p-6 mb-6">
 
-                <h3 class="text-lg font-bold mb-4">
+                <h3 class="text-base sm:text-lg font-bold mb-4">
                     Productos Más Vendidos
                 </h3>
 
                 <div class="overflow-x-auto">
 
-                    <table class="w-full border text-sm">
+                    <table class="w-full min-w-[560px] border text-sm">
 
                         <thead>
 
@@ -150,17 +150,17 @@
             <!-- STOCK BAJO -->
             @if($stockBajo->count())
 
-                <div class="bg-white shadow rounded p-6 mb-6 border-l-4 border-red-500">
+                <div class="bg-white shadow rounded p-4 sm:p-6 mb-6 border-l-4 border-red-500">
 
-                    <h3 class="text-lg font-bold text-red-700 mb-4">
+                    <h3 class="text-base sm:text-lg font-bold text-red-700 mb-4">
 
-                        ⚠ Productos con Stock Bajo
+                        Productos con Stock Bajo
 
                     </h3>
 
                     <div class="overflow-x-auto">
 
-                        <table class="w-full border text-sm">
+                        <table class="w-full min-w-[640px] border text-sm">
 
                             <thead>
 
@@ -233,17 +233,17 @@
             <!-- PRODUCTOS POR VENCER -->
             @if($productosPorVencer->count())
 
-                <div class="bg-white shadow rounded p-6 mb-6 border-l-4 border-yellow-500">
+                <div class="bg-white shadow rounded p-4 sm:p-6 mb-6 border-l-4 border-yellow-500">
 
-                    <h3 class="text-lg font-bold text-yellow-700 mb-4">
+                    <h3 class="text-base sm:text-lg font-bold text-yellow-700 mb-4">
 
-                        ⚠ Productos Próximos a Vencer
+                        Productos Próximos a Vencer
 
                     </h3>
 
                     <div class="overflow-x-auto">
 
-                        <table class="w-full border text-sm">
+                        <table class="w-full min-w-[480px] border text-sm">
 
                             <thead>
 
@@ -296,17 +296,17 @@
             <!-- PRODUCTOS VENCIDOS -->
             @if($productosVencidos->count())
 
-                <div class="bg-white shadow rounded p-6 border-l-4 border-red-700">
+                <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-red-700">
 
-                    <h3 class="text-lg font-bold text-red-700 mb-4">
+                    <h3 class="text-base sm:text-lg font-bold text-red-700 mb-4">
 
-                        ❌ Productos Vencidos
+                        Productos Vencidos
 
                     </h3>
 
                     <div class="overflow-x-auto">
 
-                        <table class="w-full border text-sm">
+                        <table class="w-full min-w-[480px] border text-sm">
 
                             <thead>
 

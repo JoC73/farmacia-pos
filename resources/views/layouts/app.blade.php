@@ -15,15 +15,15 @@
 
 <body class="font-sans antialiased bg-gray-100">
 
-<div class="min-h-screen flex">
+<div x-data="{ mobileMenuOpen: false }" class="min-h-screen md:flex">
 
     @include('layouts.navigation')
 
-    <div class="flex-1 min-w-0">
+    <div class="flex-1 min-w-0 pt-14 md:pt-0">
 
-        <div class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <div class="bg-white border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center gap-4">
 
-            <div>
+            <div class="min-w-0">
                 @isset($header)
                     {{ $header }}
                 @else
@@ -33,11 +33,11 @@
                 @endisset
             </div>
 
-            <div class="text-sm text-gray-600 text-right">
-                <div class="font-semibold">
+            <div class="text-xs sm:text-sm text-gray-600 text-right shrink-0">
+                <div class="font-semibold max-w-28 sm:max-w-none truncate">
                     {{ Auth::user()->name }}
                 </div>
-                <div>
+                <div class="max-w-28 sm:max-w-none truncate">
                     {{ Auth::user()->sucursal->nombre ?? 'Sin sucursal' }}
                 </div>
             </div>
