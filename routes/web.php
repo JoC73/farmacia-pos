@@ -25,6 +25,8 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
+Route::get('/health', fn () => response('ok', 200));
+
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
