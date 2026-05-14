@@ -101,11 +101,24 @@ class InventarioFisicoController extends Controller
             (int) $data['sucursal_id']
         );
 
+        $previewToken = null;
+
+        if ($previewRows->isNotEmpty() && $importErrors->isEmpty()) {
+            $previewToken = (string) Str::uuid();
+            session([
+                "inventario_fisico_preview.{$previewToken}" => [
+                    'sucursal_id' => (int) $data['sucursal_id'],
+                    'rows' => $previewRows->values()->all(),
+                ],
+            ]);
+        }
+
         return view('inventarios.fisico', [
             'sucursales' => $sucursales,
             'previewRows' => $previewRows,
             'importErrors' => $importErrors,
             'selectedSucursal' => (int) $data['sucursal_id'],
+            'previewToken' => $previewToken,
         ]);
     }
 
@@ -113,12 +126,24 @@ class InventarioFisicoController extends Controller
     {
         $data = $request->validate([
             'sucursal_id' => ['required', 'exists:sucursales,id'],
-            'rows' => ['required', 'string'],
+            'preview_token' => ['required', 'string'],
         ]);
 
-        $rows = collect(json_decode($data['rows'], true));
+        $preview = session()->pull("inventario_fisico_preview.{$data['preview_token']}");
 
-        abort_if($rows->isEmpty(), 422, 'No hay datos para aplicar.');
+        if (!$preview || (int) $preview['sucursal_id'] !== (int) $data['sucursal_id']) {
+            return redirect()
+                ->route('inventarios.fisico')
+                ->with('error', 'La vista previa expiro. Vuelve a validar el archivo antes de confirmar.');
+        }
+
+        $rows = collect($preview['rows']);
+
+        if ($rows->isEmpty()) {
+            return redirect()
+                ->route('inventarios.fisico')
+                ->with('error', 'No hay datos para aplicar.');
+        }
 
         $referencia = 'Inventario fisico ' . now()->format('Ymd-His');
         $aplicados = 0;

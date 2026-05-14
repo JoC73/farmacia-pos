@@ -8,6 +8,12 @@
     <div class="py-4 sm:py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
+            @if (session('error'))
+                <div class="rounded bg-red-100 p-4 text-sm text-red-800">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             @if ($importErrors->isNotEmpty())
                 <div class="rounded bg-red-100 p-4 text-sm text-red-800">
                     <div class="font-semibold mb-2">
@@ -114,7 +120,7 @@
                         <form method="POST" action="{{ route('inventarios.fisico.confirmar') }}">
                             @csrf
                             <input type="hidden" name="sucursal_id" value="{{ $selectedSucursal }}">
-                            <input type="hidden" name="rows" value="{{ e($previewRows->toJson()) }}">
+                            <input type="hidden" name="preview_token" value="{{ $previewToken }}">
 
                             <button type="submit"
                                     onclick="return confirm('Deseas aplicar estos ajustes de inventario fisico?')"
