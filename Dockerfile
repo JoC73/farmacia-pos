@@ -12,8 +12,8 @@ RUN npm run build
 
 FROM php:8.4-cli-alpine AS vendor
 
-RUN apk add --no-cache git icu-dev libzip-dev oniguruma-dev postgresql-dev unzip \
-    && docker-php-ext-install bcmath intl mbstring pdo_pgsql pgsql zip
+RUN apk add --no-cache git icu-dev libxml2-dev libzip-dev oniguruma-dev postgresql-dev unzip \
+    && docker-php-ext-install bcmath dom intl mbstring pdo_pgsql pgsql xmlreader zip
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -29,8 +29,8 @@ RUN composer dump-autoload --optimize \
 
 FROM php:8.4-fpm-alpine
 
-RUN apk add --no-cache bash icu-dev libzip-dev nginx oniguruma-dev postgresql-dev supervisor \
-    && docker-php-ext-install bcmath intl mbstring opcache pdo_pgsql pgsql zip \
+RUN apk add --no-cache bash icu-dev libxml2-dev libzip-dev nginx oniguruma-dev postgresql-dev supervisor \
+    && docker-php-ext-install bcmath dom intl mbstring opcache pdo_pgsql pgsql xmlreader zip \
     && mkdir -p /run/nginx /var/log/supervisor
 
 WORKDIR /var/www/html

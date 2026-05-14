@@ -29,7 +29,7 @@
                     </h3>
 
                     <p class="text-sm text-gray-600 mb-4">
-                        Descarga el inventario actual, realiza el conteo fisico y llena la columna existencia_fisica.
+                        Descarga el inventario actual en Excel, realiza el conteo fisico y llena la columna existencia_fisica.
                     </p>
 
                     <form method="GET" action="{{ route('inventarios.fisico.plantilla') }}" class="space-y-4">
@@ -50,7 +50,7 @@
                         </div>
 
                         <button type="submit" class="inline-flex items-center rounded bg-blue-600 px-4 py-2 text-white">
-                            Descargar CSV
+                            Descargar Excel
                         </button>
                     </form>
                 </div>
@@ -85,10 +85,10 @@
 
                         <div>
                             <label for="archivo" class="block text-sm font-medium text-gray-700">
-                                Archivo CSV
+                                Archivo Excel
                             </label>
 
-                            <input id="archivo" name="archivo" type="file" accept=".csv,text/csv" required class="mt-1 block w-full text-sm">
+                            <input id="archivo" name="archivo" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" required class="mt-1 block w-full text-sm">
                         </div>
 
                         <button type="submit" class="inline-flex items-center rounded bg-slate-800 px-4 py-2 text-white">
