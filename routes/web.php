@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\EntradaInventarioController;
 use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\InventarioFisicoController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
@@ -75,6 +76,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/inventarios', [InventarioController::class, 'index'])
         ->name('inventarios.index')
         ->middleware('permission:inventario.ver');
+
+    Route::get('/inventarios/fisico', [InventarioFisicoController::class, 'index'])
+        ->name('inventarios.fisico')
+        ->middleware('permission:inventario.ajustar');
+
+    Route::get('/inventarios/fisico/plantilla', [InventarioFisicoController::class, 'download'])
+        ->name('inventarios.fisico.plantilla')
+        ->middleware('permission:inventario.ajustar');
+
+    Route::post('/inventarios/fisico/preview', [InventarioFisicoController::class, 'preview'])
+        ->name('inventarios.fisico.preview')
+        ->middleware('permission:inventario.ajustar');
+
+    Route::post('/inventarios/fisico/confirmar', [InventarioFisicoController::class, 'confirm'])
+        ->name('inventarios.fisico.confirmar')
+        ->middleware('permission:inventario.ajustar');
 
     /*
     |--------------------------------------------------------------------------

@@ -14,11 +14,18 @@
                 </div>
             @endif
 
-            <div class="mb-4">
+            <div class="mb-4 flex flex-wrap gap-2">
                 <a href="{{ route('inventarios.entrada') }}"
                    class="px-4 py-2 bg-blue-600 text-white rounded">
                     Nueva Entrada
                 </a>
+
+                @can('inventario.ajustar')
+                    <a href="{{ route('inventarios.fisico') }}"
+                       class="px-4 py-2 bg-slate-800 text-white rounded">
+                        Inventario Fisico
+                    </a>
+                @endcan
             </div>
 
             <div class="bg-white shadow rounded p-4 overflow-x-auto">
