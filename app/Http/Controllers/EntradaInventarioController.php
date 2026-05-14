@@ -14,7 +14,7 @@ class EntradaInventarioController extends Controller
     public function create()
     {
         $productos = Producto::where('estado', true)
-            ->orderBy('nombre')
+            ->ordenadoPorNombre()
             ->get();
 
         $sucursales = Sucursal::where('estado', true)

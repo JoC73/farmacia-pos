@@ -33,7 +33,7 @@ class VentaController extends Controller
     {
 $productos = Producto::with('inventarios')
     ->where('estado', true)
-    ->orderBy('nombre')
+    ->ordenadoPorNombre()
     ->get()
     ->map(function ($producto) {
 

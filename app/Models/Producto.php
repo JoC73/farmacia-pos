@@ -24,6 +24,13 @@ class Producto extends Model
         return $this->belongsTo(Categoria::class);
     }
 
+    public function scopeOrdenadoPorNombre($query)
+    {
+        return $query
+            ->orderByRaw('LOWER(nombre)')
+            ->orderBy('nombre');
+    }
+
     public function inventarios()
     {
         return $this->hasMany(Inventario::class);

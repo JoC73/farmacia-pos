@@ -12,7 +12,11 @@ class InventarioController extends Controller
             'producto',
             'sucursal'
         ])
-        ->orderByDesc('id')
+        ->join('productos', 'inventarios.producto_id', '=', 'productos.id')
+        ->leftJoin('sucursales', 'inventarios.sucursal_id', '=', 'sucursales.id')
+        ->select('inventarios.*')
+        ->orderByRaw('LOWER(productos.nombre)')
+        ->orderByRaw("LOWER(COALESCE(sucursales.nombre, ''))")
         ->paginate(20);
 
         return view('inventarios.index', compact('inventarios'));

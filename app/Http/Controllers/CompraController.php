@@ -30,7 +30,7 @@ class CompraController extends Controller
     public function create()
     {
         $productos = Producto::where('estado', true)
-            ->orderBy('nombre')
+            ->ordenadoPorNombre()
             ->get();
 
         $proveedores = Proveedor::where('estado', true)
