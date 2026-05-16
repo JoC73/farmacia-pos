@@ -1,3 +1,7 @@
+@php
+    $physicalInventoryEnabled = \App\Models\PremiumModule::enabled('physical_inventory');
+@endphp
+
 <!-- SIDEBAR DESKTOP -->
 <aside class="hidden md:flex md:flex-col w-64 min-h-screen bg-slate-900 text-white">
 
@@ -60,6 +64,16 @@
             </a>
         @endcan
 
+        @can('inventario.ajustar')
+            <a href="{{ route('inventarios.fisico') }}"
+               class="block px-4 py-3 rounded-lg {{ request()->routeIs('inventarios.fisico*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                Inventario Fisico
+                @unless($physicalInventoryEnabled || Auth::user()->hasRole('Super Usuario'))
+                    <span class="ml-1 text-xs text-yellow-300">Premium</span>
+                @endunless
+            </a>
+        @endcan
+
         @can('compras.ver')
             <a href="{{ route('compras.index') }}"
                class="block px-4 py-3 rounded-lg {{ request()->routeIs('compras.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
@@ -108,6 +122,13 @@
                 Reportes
             </a>
         @endcan
+
+        @role('Super Usuario')
+            <a href="{{ route('premium.index') }}"
+               class="block px-4 py-3 rounded-lg {{ request()->routeIs('premium.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                Modulos Premium
+            </a>
+        @endrole
 
     </nav>
 
@@ -242,6 +263,16 @@
                 </a>
             @endcan
 
+            @can('inventario.ajustar')
+                <a href="{{ route('inventarios.fisico') }}"
+                   class="block rounded-lg px-4 py-3 {{ request()->routeIs('inventarios.fisico*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    Inventario Fisico
+                    @unless($physicalInventoryEnabled || Auth::user()->hasRole('Super Usuario'))
+                        <span class="ml-1 text-xs text-yellow-300">Premium</span>
+                    @endunless
+                </a>
+            @endcan
+
             @can('compras.ver')
                 <a href="{{ route('compras.index') }}"
                    class="block rounded-lg px-4 py-3 {{ request()->routeIs('compras.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
@@ -287,6 +318,13 @@
                     Reportes
                 </a>
             @endcan
+
+            @role('Super Usuario')
+                <a href="{{ route('premium.index') }}"
+                   class="block rounded-lg px-4 py-3 {{ request()->routeIs('premium.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                    Modulos Premium
+                </a>
+            @endrole
         </nav>
 
         <div class="border-t border-slate-700 p-4">

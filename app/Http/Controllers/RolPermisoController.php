@@ -11,6 +11,7 @@ class RolPermisoController extends Controller
     public function index()
     {
         $roles = Role::with('permissions')
+            ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->where('name', '!=', 'Super Usuario'))
             ->latest()
             ->get();
 
@@ -31,6 +32,12 @@ class RolPermisoController extends Controller
             'name' => 'required|unique:roles,name',
         ]);
 
+        if ($request->name === 'Super Usuario' && ! auth()->user()->hasRole('Super Usuario')) {
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'No tienes autorizacion para crear el rol Super Usuario.']);
+        }
+
         $role = Role::create([
             'name' => $request->name,
         ]);
@@ -44,6 +51,10 @@ class RolPermisoController extends Controller
 
     public function edit(Role $role)
     {
+        if ($role->name === 'Super Usuario' && ! auth()->user()->hasRole('Super Usuario')) {
+            abort(403);
+        }
+
         $permissions = Permission::orderBy('name')
             ->get();
 
@@ -55,6 +66,15 @@ class RolPermisoController extends Controller
         $request->validate([
             'name' => 'required|unique:roles,name,' . $role->id,
         ]);
+
+        if (
+            ($role->name === 'Super Usuario' || $request->name === 'Super Usuario')
+            && ! auth()->user()->hasRole('Super Usuario')
+        ) {
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'No tienes autorizacion para modificar el rol Super Usuario.']);
+        }
 
         $role->update([
             'name' => $request->name,

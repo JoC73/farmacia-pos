@@ -18,6 +18,7 @@ use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\RolPermisoController;
+use App\Http\Controllers\PremiumModuleController;
 
 
 Route::get('/', function () {
@@ -79,19 +80,19 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/inventarios/fisico', [InventarioFisicoController::class, 'index'])
         ->name('inventarios.fisico')
-        ->middleware('permission:inventario.ajustar');
+        ->middleware(['permission:inventario.ajustar', 'premium:physical_inventory']);
 
     Route::get('/inventarios/fisico/plantilla', [InventarioFisicoController::class, 'download'])
         ->name('inventarios.fisico.plantilla')
-        ->middleware('permission:inventario.ajustar');
+        ->middleware(['permission:inventario.ajustar', 'premium:physical_inventory']);
 
     Route::post('/inventarios/fisico/preview', [InventarioFisicoController::class, 'preview'])
         ->name('inventarios.fisico.preview')
-        ->middleware('permission:inventario.ajustar');
+        ->middleware(['permission:inventario.ajustar', 'premium:physical_inventory']);
 
     Route::post('/inventarios/fisico/confirmar', [InventarioFisicoController::class, 'confirm'])
         ->name('inventarios.fisico.confirmar')
-        ->middleware('permission:inventario.ajustar');
+        ->middleware(['permission:inventario.ajustar', 'premium:physical_inventory']);
 
     /*
     |--------------------------------------------------------------------------
@@ -267,6 +268,25 @@ Route::get('/roles/{role}/edit', [RolPermisoController::class, 'edit'])
 Route::put('/roles/{role}', [RolPermisoController::class, 'update'])
     ->name('roles.update')
     ->middleware('permission:roles.editar');
+
+/*
+|--------------------------------------------------------------------------
+| MODULOS PREMIUM
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/premium/bloqueado/{moduleCode}', [PremiumModuleController::class, 'locked'])
+        ->name('premium.locked');
+
+    Route::get('/premium/modulos', [PremiumModuleController::class, 'index'])
+        ->name('premium.index')
+        ->middleware('role:Super Usuario');
+
+    Route::patch('/premium/modulos/{module}/toggle', [PremiumModuleController::class, 'toggle'])
+        ->name('premium.toggle')
+        ->middleware('role:Super Usuario');
+});
     
 
 

@@ -30,6 +30,7 @@ class UsuarioController extends Controller
             ->get();
 
         $roles = Role::orderBy('name')
+            ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->where('name', '!=', 'Super Usuario'))
             ->get();
 
         return view('usuarios.create', compact(
@@ -53,6 +54,12 @@ class UsuarioController extends Controller
             'rol' => 'required|exists:roles,name',
 
         ]);
+
+        if ($request->rol === 'Super Usuario' && ! auth()->user()->hasRole('Super Usuario')) {
+            return back()
+                ->withInput()
+                ->withErrors(['rol' => 'No tienes autorizacion para asignar el rol Super Usuario.']);
+        }
 
         $usuario = User::create([
 
@@ -85,6 +92,7 @@ class UsuarioController extends Controller
             ->get();
 
         $roles = Role::orderBy('name')
+            ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->where('name', '!=', 'Super Usuario'))
             ->get();
 
         return view('usuarios.edit', compact(
@@ -107,6 +115,15 @@ class UsuarioController extends Controller
             'rol' => 'required|exists:roles,name',
 
         ]);
+
+        if (
+            ($request->rol === 'Super Usuario' || $usuario->hasRole('Super Usuario'))
+            && ! auth()->user()->hasRole('Super Usuario')
+        ) {
+            return back()
+                ->withInput()
+                ->withErrors(['rol' => 'No tienes autorizacion para modificar usuarios Super Usuario.']);
+        }
 
         $usuario->update([
 

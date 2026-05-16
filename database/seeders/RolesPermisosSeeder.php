@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\PremiumModule;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
@@ -65,6 +68,9 @@ class RolesPermisosSeeder extends Seeder
 
             'configuracion.ver',
             'configuracion.editar',
+
+            'premium.modulos.ver',
+            'premium.modulos.editar',
         ];
 
         foreach ($permisos as $permiso) {
@@ -89,7 +95,13 @@ class RolesPermisosSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
+        $superUsuario = Role::firstOrCreate([
+            'name' => 'Super Usuario',
+            'guard_name' => 'web',
+        ]);
+
         $admin->syncPermissions(Permission::all());
+        $superUsuario->syncPermissions(Permission::all());
 
         $cajero->syncPermissions([
             'dashboard.ver',
@@ -115,5 +127,21 @@ class RolesPermisosSeeder extends Seeder
             'compras.ver',
             'compras.crear',
         ]);
+
+        PremiumModule::seedCatalog();
+
+        if (env('SUPER_USER_EMAIL') && env('SUPER_USER_PASSWORD')) {
+            $user = User::updateOrCreate(
+                ['email' => env('SUPER_USER_EMAIL')],
+                [
+                    'name' => env('SUPER_USER_NAME', 'Super Usuario'),
+                    'password' => Hash::make(env('SUPER_USER_PASSWORD')),
+                    'sucursal_id' => null,
+                    'estado' => true,
+                ]
+            );
+
+            $user->syncRoles([$superUsuario]);
+        }
     }
 }
