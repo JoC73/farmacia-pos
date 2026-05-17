@@ -1,4 +1,8 @@
 <x-app-layout>
+    @php
+        $branchCreationEnabled = \App\Models\PremiumModule::enabled('branch_creation') || Auth::user()->hasRole('Super Usuario');
+    @endphp
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Sucursales
@@ -17,8 +21,11 @@
             <div class="mb-4">
                 <a href="{{ route('sucursales.create') }}"
                    class="px-4 py-2 rounded"
-                   style="background-color: blue; color: white;">
+                   style="background-color: {{ $branchCreationEnabled ? 'blue' : '#334155' }}; color: white;">
                     Nueva Sucursal
+                    @unless($branchCreationEnabled)
+                        <span class="ml-1 text-xs">(Premium)</span>
+                    @endunless
                 </a>
             </div>
 

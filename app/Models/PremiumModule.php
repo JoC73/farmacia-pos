@@ -24,6 +24,10 @@ class PremiumModule extends Model
     public static function catalog(): array
     {
         return [
+            'branch_creation' => [
+                'name' => 'Creacion de sucursales adicionales',
+                'description' => 'Permite crear nuevas sucursales despues de activar el paquete premium.',
+            ],
             'physical_inventory' => [
                 'name' => 'Inventario fisico masivo',
                 'description' => 'Descarga Excel por sucursal, carga conteos fisicos y aplica ajustes auditados.',

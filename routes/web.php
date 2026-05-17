@@ -211,10 +211,36 @@ Route::get('/cajas/{caja}', [CajaController::class, 'show'])
 |--------------------------------------------------------------------------
 */
 
-Route::resource('sucursales', SucursalController::class)
-    ->parameters([
-        'sucursales' => 'sucursal'
-    ])
+Route::get('/sucursales', [SucursalController::class, 'index'])
+    ->name('sucursales.index')
+    ->middleware('permission:sucursales.ver');
+
+Route::get('/sucursales/create', [SucursalController::class, 'create'])
+    ->name('sucursales.create')
+    ->middleware(['permission:sucursales.ver', 'premium:branch_creation']);
+
+Route::post('/sucursales', [SucursalController::class, 'store'])
+    ->name('sucursales.store')
+    ->middleware(['permission:sucursales.ver', 'premium:branch_creation']);
+
+Route::get('/sucursales/{sucursal}', [SucursalController::class, 'show'])
+    ->name('sucursales.show')
+    ->middleware('permission:sucursales.ver');
+
+Route::get('/sucursales/{sucursal}/edit', [SucursalController::class, 'edit'])
+    ->name('sucursales.edit')
+    ->middleware('permission:sucursales.ver');
+
+Route::put('/sucursales/{sucursal}', [SucursalController::class, 'update'])
+    ->name('sucursales.update')
+    ->middleware('permission:sucursales.ver');
+
+Route::patch('/sucursales/{sucursal}', [SucursalController::class, 'update'])
+    ->name('sucursales.update')
+    ->middleware('permission:sucursales.ver');
+
+Route::delete('/sucursales/{sucursal}', [SucursalController::class, 'destroy'])
+    ->name('sucursales.destroy')
     ->middleware('permission:sucursales.ver');
 
 /*
