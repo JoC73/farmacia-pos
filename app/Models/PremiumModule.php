@@ -32,6 +32,10 @@ class PremiumModule extends Model
                 'name' => 'Inventario fisico masivo',
                 'description' => 'Descarga Excel por sucursal, carga conteos fisicos y aplica ajustes auditados.',
             ],
+            'initial_product_import' => [
+                'name' => 'Carga inicial masiva de productos',
+                'description' => 'Permite crear productos desde Excel y registrar existencia inicial por sucursal.',
+            ],
             'advanced_reports' => [
                 'name' => 'Reportes avanzados y PDF profesional',
                 'description' => 'Reportes ampliados, exportaciones y documentos PDF profesionales.',

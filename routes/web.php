@@ -8,6 +8,7 @@ use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\EntradaInventarioController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\InventarioFisicoController;
+use App\Http\Controllers\CargaInicialProductoController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
@@ -93,6 +94,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/inventarios/fisico/confirmar', [InventarioFisicoController::class, 'confirm'])
         ->name('inventarios.fisico.confirmar')
         ->middleware(['permission:inventario.ajustar', 'premium:physical_inventory']);
+
+    Route::get('/inventarios/carga-inicial', [CargaInicialProductoController::class, 'index'])
+        ->name('inventarios.carga-inicial')
+        ->middleware(['permission:inventario.ajustar', 'premium:initial_product_import']);
+
+    Route::get('/inventarios/carga-inicial/plantilla', [CargaInicialProductoController::class, 'download'])
+        ->name('inventarios.carga-inicial.plantilla')
+        ->middleware(['permission:inventario.ajustar', 'premium:initial_product_import']);
+
+    Route::post('/inventarios/carga-inicial/preview', [CargaInicialProductoController::class, 'preview'])
+        ->name('inventarios.carga-inicial.preview')
+        ->middleware(['permission:inventario.ajustar', 'premium:initial_product_import']);
+
+    Route::post('/inventarios/carga-inicial/confirmar', [CargaInicialProductoController::class, 'confirm'])
+        ->name('inventarios.carga-inicial.confirmar')
+        ->middleware(['permission:inventario.ajustar', 'premium:initial_product_import']);
 
     /*
     |--------------------------------------------------------------------------

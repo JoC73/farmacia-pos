@@ -21,6 +21,13 @@
                 </a>
 
                 @can('inventario.ajustar')
+                    <a href="{{ route('inventarios.carga-inicial') }}"
+                       class="px-4 py-2 bg-indigo-700 text-white rounded">
+                        Carga Inicial
+                    </a>
+                @endcan
+
+                @can('inventario.ajustar')
                     <a href="{{ route('inventarios.fisico') }}"
                        class="px-4 py-2 bg-slate-800 text-white rounded">
                         Inventario Fisico
