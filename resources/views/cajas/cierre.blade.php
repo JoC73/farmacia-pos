@@ -19,7 +19,7 @@
                     </div>
                 @endif
 
-                <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Apertura</div>
                         <div class="text-xl font-bold">Q {{ number_format($caja->monto_apertura, 2) }}</div>
@@ -30,9 +30,14 @@
                         <div class="text-xl font-bold">Q {{ number_format($ventas, 2) }}</div>
                     </div>
 
+                    <div class="p-4 bg-red-50 rounded">
+                        <div class="text-sm text-red-600">Egresos</div>
+                        <div class="text-xl font-bold text-red-700">Q {{ number_format($egresos, 2) }}</div>
+                    </div>
+
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Total sistema</div>
-                        <div class="text-xl font-bold">Q {{ number_format($caja->monto_apertura + $ventas, 2) }}</div>
+                        <div class="text-xl font-bold">Q {{ number_format($totalSistema, 2) }}</div>
                     </div>
                 </div>
 

@@ -36,6 +36,10 @@ class PremiumModule extends Model
                 'name' => 'Carga inicial masiva de productos',
                 'description' => 'Permite crear productos desde Excel y registrar existencia inicial por sucursal.',
             ],
+            'cash_expenses' => [
+                'name' => 'Egresos de caja',
+                'description' => 'Permite registrar salidas de efectivo durante el dia y cuadrarlas en el cierre de caja.',
+            ],
             'advanced_reports' => [
                 'name' => 'Reportes avanzados y PDF profesional',
                 'description' => 'Reportes ampliados, exportaciones y documentos PDF profesionales.',

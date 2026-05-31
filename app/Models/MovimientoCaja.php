@@ -14,9 +14,14 @@ class MovimientoCaja extends Model
         'user_id',
         'tipo',
         'monto',
+        'fecha_movimiento',
         'referencia',
         'descripcion',
 
+    ];
+
+    protected $casts = [
+        'fecha_movimiento' => 'datetime',
     ];
 
     public function caja()

@@ -121,9 +121,14 @@ class CajaController extends Controller
             ])
             ->sum('total');
 
+        $egresos = $this->egresosRegistrados($caja);
+        $totalSistema = $caja->monto_apertura + $ventas - $egresos;
+
         return view('cajas.cierre', compact(
             'caja',
-            'ventas'
+            'ventas',
+            'egresos',
+            'totalSistema'
         ));
     }
 
@@ -153,8 +158,10 @@ class CajaController extends Controller
             ])
             ->sum('total');
 
+        $egresos = $this->egresosRegistrados($caja);
+
         $totalSistema =
-            $caja->monto_apertura + $ventas;
+            $caja->monto_apertura + $ventas - $egresos;
 
         $diferencia =
             $request->monto_cierre - $totalSistema;
@@ -194,6 +201,40 @@ class CajaController extends Controller
         ->route('cajas.index')
         ->with('success', 'Caja cerrada correctamente.');
 }
+
+    public function createEgreso(Caja $caja)
+    {
+        $this->validarCajaParaEgreso($caja);
+
+        return view('cajas.egreso', compact('caja'));
+    }
+
+    public function storeEgreso(Request $request, Caja $caja)
+    {
+        $this->validarCajaParaEgreso($caja);
+
+        $data = $request->validate([
+            'referencia' => 'required|string|max:120',
+            'fecha_movimiento' => 'required|date',
+            'monto' => 'required|numeric|min:0.01',
+            'descripcion' => 'nullable|string|max:500',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => auth()->id(),
+            'tipo' => 'EGRESO',
+            'monto' => $data['monto'],
+            'fecha_movimiento' => $data['fecha_movimiento'],
+            'referencia' => $data['referencia'],
+            'descripcion' => $data['descripcion'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('cajas.show', $caja)
+            ->with('success', 'Egreso de caja registrado correctamente.');
+    }
+
     public function show(Caja $caja)
     {
         $caja->load([
@@ -203,5 +244,23 @@ class CajaController extends Controller
         ]);
 
         return view('cajas.show', compact('caja'));
+    }
+
+    private function egresosRegistrados(Caja $caja): float
+    {
+        return (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->where('tipo', 'EGRESO')
+            ->sum('monto');
+    }
+
+    private function validarCajaParaEgreso(Caja $caja): void
+    {
+        if ($caja->estado === 'CERRADA') {
+            abort(403, 'No se pueden registrar egresos en una caja cerrada.');
+        }
+
+        if ($caja->user_id !== auth()->id() && ! auth()->user()->can('caja.ver_cierres')) {
+            abort(403, 'No tienes permiso para registrar egresos en esta caja.');
+        }
     }
 }

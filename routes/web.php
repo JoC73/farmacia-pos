@@ -218,6 +218,14 @@ Route::post('/cajas/{caja}/cierre', [CajaController::class, 'storeCierre'])
     ->name('cajas.cierre.store')
     ->middleware('permission:caja.cerrar');
 
+Route::get('/cajas/{caja}/egreso', [CajaController::class, 'createEgreso'])
+    ->name('cajas.egreso')
+    ->middleware(['permission:caja.abrir', 'premium:cash_expenses']);
+
+Route::post('/cajas/{caja}/egreso', [CajaController::class, 'storeEgreso'])
+    ->name('cajas.egreso.store')
+    ->middleware(['permission:caja.abrir', 'premium:cash_expenses']);
+
 Route::get('/cajas/{caja}', [CajaController::class, 'show'])
     ->name('cajas.show')
     ->middleware('permission:caja.ver_cierres');

@@ -16,6 +16,11 @@
     <div class="py-6">
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow rounded p-6">
+                @if(session('success'))
+                    <div class="mb-4 bg-green-100 border border-green-300 text-green-700 p-4 rounded">
+                        {{ session('success') }}
+                    </div>
+                @endif
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
@@ -73,6 +78,7 @@
                                 <th class="p-2 border">Monto</th>
                                 <th class="p-2 border">Referencia</th>
                                 <th class="p-2 border">Descripción</th>
+                                <th class="p-2 border">Usuario</th>
                                 <th class="p-2 border">Fecha</th>
                             </tr>
                         </thead>
@@ -84,11 +90,14 @@
                                     <td class="p-2 border">Q {{ number_format($movimiento->monto, 2) }}</td>
                                     <td class="p-2 border">{{ $movimiento->referencia ?? '-' }}</td>
                                     <td class="p-2 border">{{ $movimiento->descripcion ?? '-' }}</td>
-                                    <td class="p-2 border">{{ $movimiento->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="p-2 border">{{ $movimiento->usuario->name ?? '-' }}</td>
+                                    <td class="p-2 border">
+                                        {{ optional($movimiento->fecha_movimiento)->format('d/m/Y H:i') ?? $movimiento->created_at->format('d/m/Y H:i') }}
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="p-4 text-center text-gray-500">
+                                    <td colspan="6" class="p-4 text-center text-gray-500">
                                         No hay movimientos registrados.
                                     </td>
                                 </tr>

@@ -70,6 +70,10 @@
                                         <a href="{{ route('cajas.cierre', $caja) }}" class="text-red-600 font-bold ml-3">
                                             Cerrar
                                         </a>
+
+                                        <a href="{{ route('cajas.egreso', $caja) }}" class="text-amber-600 font-bold ml-3">
+                                            Egreso
+                                        </a>
                                     @endif
                                 </td>
                             </tr>
