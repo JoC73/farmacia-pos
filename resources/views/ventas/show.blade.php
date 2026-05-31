@@ -32,6 +32,41 @@
                     </div>
                 </div>
 
+                @if(session('success'))
+                    <div class="mb-4 bg-green-100 border border-green-300 text-green-700 p-4 rounded print:hidden">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if(session('error'))
+                    <div class="mb-4 bg-red-100 border border-red-300 text-red-700 p-4 rounded print:hidden">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div class="mb-4 bg-red-100 border border-red-300 text-red-700 p-4 rounded print:hidden">
+                        <ul class="list-disc list-inside">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if($venta->estado === 'ANULADA')
+                    <div class="mb-6 border border-red-200 bg-red-50 text-red-800 rounded p-4">
+                        <div class="font-bold">Venta anulada</div>
+                        <div class="text-sm">
+                            Anulada por {{ $venta->anulador->name ?? '-' }}
+                            el {{ optional($venta->fecha_anulacion)->format('d/m/Y H:i') ?? '-' }}.
+                        </div>
+                        <div class="text-sm mt-1">
+                            Motivo: {{ $venta->motivo_anulacion ?? '-' }}
+                        </div>
+                    </div>
+                @endif
+
                 <!-- ENCABEZADO -->
                 <div class="text-center mb-8">
 
@@ -48,6 +83,12 @@
                         Fecha:
                         {{ $venta->created_at->format('d/m/Y H:i') }}
                     </p>
+
+                    @if($venta->estado === 'ANULADA')
+                        <p class="mt-2 text-red-700 font-bold">
+                            DOCUMENTO ANULADO
+                        </p>
+                    @endif
 
                 </div>
 
@@ -211,6 +252,44 @@
                     Gracias por su compra.
 
                 </div>
+
+                @can('ventas.anular')
+                    @if($venta->estado !== 'ANULADA' && auth()->user()->hasAnyRole(['Administrador', 'Super Usuario']))
+                        <div id="anular" class="mt-8 border-t pt-6 print:hidden">
+                            <h3 class="font-bold text-lg text-red-700 mb-2">
+                                Anular venta
+                            </h3>
+
+                            <p class="text-sm text-gray-600 mb-4">
+                                Esta accion devuelve el stock vendido y excluye la venta del cierre de caja mientras la caja siga abierta.
+                            </p>
+
+                            <form method="POST"
+                                  action="{{ route('ventas.anular', $venta) }}"
+                                  onsubmit="return confirm('¿Confirmas anular esta venta? Esta accion no se puede deshacer.');">
+                                @csrf
+
+                                <div class="mb-4">
+                                    <label class="block font-medium mb-1">
+                                        Motivo de anulacion
+                                    </label>
+
+                                    <textarea name="motivo_anulacion"
+                                              rows="3"
+                                              required
+                                              class="w-full border-gray-300 rounded"
+                                              placeholder="Ejemplo: Error en producto, venta duplicada, cliente solicito cancelacion...">{{ old('motivo_anulacion') }}</textarea>
+                                </div>
+
+                                <button type="submit"
+                                        class="px-4 py-2 rounded"
+                                        style="background-color: #dc2626; color: white;">
+                                    Anular Venta
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+                @endcan
 
             </div>
 

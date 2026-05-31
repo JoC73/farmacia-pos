@@ -21,7 +21,7 @@ class ReporteController extends Controller
             'cliente',
             'usuario',
             'sucursal',
-        ]);
+        ])->where('estado', 'FINALIZADA');
 
         /*
         |--------------------------------------------------------------------------

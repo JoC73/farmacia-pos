@@ -10,6 +10,7 @@ use App\Models\MovimientoInventario;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use App\Models\Caja;
 use App\Models\MovimientoCaja;
 
@@ -22,6 +23,7 @@ class VentaController extends Controller
             'usuario',
             'sucursal',
             'cliente',
+            'anulador',
         ])
         ->latest()
         ->paginate(20);
@@ -237,8 +239,96 @@ MovimientoCaja::create([
             'sucursal',
             'cliente',
             'detalles.producto',
+            'anulador',
         ]);
 
         return view('ventas.show', compact('venta'));
+    }
+
+    public function anular(Request $request, Venta $venta)
+    {
+        $data = $request->validate([
+            'motivo_anulacion' => 'required|string|min:5|max:500',
+        ]);
+
+        if ($venta->estado === 'ANULADA') {
+            return redirect()
+                ->route('ventas.show', $venta)
+                ->with('error', 'Esta venta ya fue anulada anteriormente.');
+        }
+
+        DB::transaction(function () use ($venta, $data) {
+            $venta->load('detalles');
+
+            $caja = Caja::whereHas('movimientos', function ($query) use ($venta) {
+                $query->where('referencia', $venta->numero_factura)
+                    ->where('tipo', 'VENTA');
+            })->lockForUpdate()->first();
+
+            if (! $caja) {
+                throw ValidationException::withMessages([
+                    'venta' => 'No se encontro la caja asociada a esta venta.',
+                ]);
+            }
+
+            if ($caja->estado !== 'ABIERTA') {
+                throw ValidationException::withMessages([
+                    'venta' => 'No se puede anular una venta cuya caja ya fue cerrada.',
+                ]);
+            }
+
+            foreach ($venta->detalles as $detalle) {
+                $inventario = Inventario::where('producto_id', $detalle->producto_id)
+                    ->where('sucursal_id', $venta->sucursal_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $inventario) {
+                    throw ValidationException::withMessages([
+                        'venta' => 'No existe inventario para revertir un producto de la venta.',
+                    ]);
+                }
+
+                $existenciaAnterior = $inventario->existencia;
+                $existenciaNueva = $existenciaAnterior + $detalle->cantidad;
+
+                $inventario->update([
+                    'existencia' => $existenciaNueva,
+                ]);
+
+                MovimientoInventario::create([
+                    'producto_id' => $detalle->producto_id,
+                    'sucursal_id' => $venta->sucursal_id,
+                    'user_id' => auth()->id(),
+                    'tipo_movimiento' => 'DEVOLUCION_CLIENTE',
+                    'cantidad' => $detalle->cantidad,
+                    'existencia_anterior' => $existenciaAnterior,
+                    'existencia_nueva' => $existenciaNueva,
+                    'referencia' => $venta->numero_factura,
+                    'observacion' => 'Anulacion de venta: ' . $data['motivo_anulacion'],
+                ]);
+            }
+
+            MovimientoCaja::create([
+                'caja_id' => $caja->id,
+                'user_id' => auth()->id(),
+                'tipo' => 'AJUSTE',
+                'monto' => $venta->total,
+                'referencia' => $venta->numero_factura,
+                'descripcion' => 'Anulacion de venta: ' . $data['motivo_anulacion'],
+            ]);
+
+            $venta->update([
+                'estado' => 'ANULADA',
+                'anulada_por' => auth()->id(),
+                'fecha_anulacion' => now(),
+                'motivo_anulacion' => $data['motivo_anulacion'],
+                'observacion' => trim(($venta->observacion ? $venta->observacion . "\n" : '') . 'Anulada: ' . $data['motivo_anulacion']),
+            ]);
+        });
+
+        return redirect()
+            ->route('ventas.show', $venta)
+            ->with('success', 'Venta anulada correctamente. Stock y caja fueron revertidos.');
     }
 }

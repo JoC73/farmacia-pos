@@ -115,6 +115,7 @@ class CajaController extends Controller
         }
 
         $ventas = Venta::where('user_id', $caja->user_id)
+            ->where('estado', 'FINALIZADA')
             ->whereBetween('created_at', [
                 $caja->fecha_apertura,
                 now()
@@ -152,6 +153,7 @@ class CajaController extends Controller
     DB::transaction(function () use ($request, $caja) {
 
         $ventas = Venta::where('user_id', $caja->user_id)
+            ->where('estado', 'FINALIZADA')
             ->whereBetween('created_at', [
                 $caja->fecha_apertura,
                 now()

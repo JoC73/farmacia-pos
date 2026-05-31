@@ -112,7 +112,15 @@
 
                                 <td class="p-2 border">
 
-                                    {{ $venta->estado }}
+                                    @if($venta->estado === 'ANULADA')
+                                        <span class="px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">
+                                            ANULADA
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-700">
+                                            {{ $venta->estado }}
+                                        </span>
+                                    @endif
 
                                 </td>
 
@@ -132,6 +140,15 @@
                                             Ver
 
                                         </a>
+
+                                        @can('ventas.anular')
+                                            @if($venta->estado !== 'ANULADA' && auth()->user()->hasAnyRole(['Administrador', 'Super Usuario']))
+                                                <a href="{{ route('ventas.show', $venta) }}#anular"
+                                                   class="text-red-600 font-bold ml-3">
+                                                    Anular
+                                                </a>
+                                            @endif
+                                        @endcan
 
                                     @else
 

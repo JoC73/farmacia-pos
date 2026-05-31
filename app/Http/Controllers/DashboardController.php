@@ -15,10 +15,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $ventasHoy = Venta::whereDate('created_at', today())
+        $ventasHoy = Venta::where('estado', 'FINALIZADA')
+            ->whereDate('created_at', today())
             ->sum('total');
 
-        $ventasMes = Venta::whereMonth('created_at', now()->month)
+        $ventasMes = Venta::where('estado', 'FINALIZADA')
+            ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->sum('total');
 
@@ -56,6 +58,7 @@ class DashboardController extends Controller
                 DB::raw('SUM(subtotal) as total_generado')
             )
             ->with('producto')
+            ->whereHas('venta', fn ($query) => $query->where('estado', 'FINALIZADA'))
             ->groupBy('producto_id')
             ->orderByDesc('total_vendido')
             ->limit(5)
