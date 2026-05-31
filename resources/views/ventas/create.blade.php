@@ -8,6 +8,13 @@
 
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="mb-4 flex justify-end">
+                <a href="{{ route('ventas.index') }}"
+                   class="px-4 py-2 rounded text-center"
+                   style="background-color: #6b7280; color: white;">
+                    Volver
+                </a>
+            </div>
 
             @if ($errors->any())
                 <div class="mb-4 bg-red-100 border border-red-300 text-red-700 p-4 rounded">

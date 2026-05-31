@@ -23,7 +23,7 @@
 
         <div class="bg-white border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center gap-4">
 
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
                 @isset($header)
                     {{ $header }}
                 @else

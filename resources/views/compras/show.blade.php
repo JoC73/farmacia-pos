@@ -2,21 +2,9 @@
 
     <x-slot name="header">
 
-        <div class="flex justify-between items-center">
-
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Compra
-            </h2>
-
-            <button onclick="window.print()"
-                    class="px-4 py-2 rounded"
-                    style="background-color: green; color: white;">
-
-                Imprimir
-
-            </button>
-
-        </div>
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Compra
+        </h2>
 
     </x-slot>
 
@@ -25,6 +13,26 @@
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
 
             <div class="bg-white shadow rounded p-8">
+                <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">Comprobante de compra</h3>
+                        <p class="text-sm text-gray-500">Factura {{ $compra->numero_factura }}</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <a href="{{ route('compras.index') }}"
+                           class="px-4 py-2 rounded text-center"
+                           style="background-color: #6b7280; color: white;">
+                            Volver
+                        </a>
+
+                        <button onclick="window.print()"
+                                class="px-4 py-2 rounded"
+                                style="background-color: green; color: white;">
+                            Imprimir
+                        </button>
+                    </div>
+                </div>
 
                 <div class="text-center mb-8">
 
