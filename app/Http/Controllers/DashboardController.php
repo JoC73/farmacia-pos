@@ -15,26 +15,37 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+        $sucursalId = $user->visibleSucursalId();
+        $scopeLabel = $sucursalId
+            ? ($user->sucursal?->nombre ?? 'Sucursal asignada')
+            : 'Todas las sucursales';
+
         $ventasHoy = Venta::where('estado', 'FINALIZADA')
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->whereDate('created_at', today())
             ->sum('total');
 
         $ventasMes = Venta::where('estado', 'FINALIZADA')
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->sum('total');
 
         $comprasMes = Compra::whereMonth('created_at', now()->month)
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->whereYear('created_at', now()->year)
             ->sum('total');
 
         $cajasAbiertas = Caja::where('estado', 'ABIERTA')
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->count();
 
         $stockBajo = Inventario::with([
                 'producto',
                 'sucursal'
             ])
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->whereHas('producto')
             ->get()
             ->filter(function ($inventario) {
@@ -42,12 +53,24 @@ class DashboardController extends Controller
             });
 
         $productosPorVencer = Producto::whereNotNull('fecha_vencimiento')
+            ->when($sucursalId, fn ($query) => $query->whereHas(
+                'inventarios',
+                fn ($inventario) => $inventario
+                    ->where('sucursal_id', $sucursalId)
+                    ->where('existencia', '>', 0)
+            ))
             ->whereDate('fecha_vencimiento', '<=', Carbon::now()->addDays(30))
             ->whereDate('fecha_vencimiento', '>=', Carbon::now())
             ->orderBy('fecha_vencimiento')
             ->get();
 
         $productosVencidos = Producto::whereNotNull('fecha_vencimiento')
+            ->when($sucursalId, fn ($query) => $query->whereHas(
+                'inventarios',
+                fn ($inventario) => $inventario
+                    ->where('sucursal_id', $sucursalId)
+                    ->where('existencia', '>', 0)
+            ))
             ->whereDate('fecha_vencimiento', '<', Carbon::now())
             ->orderBy('fecha_vencimiento')
             ->get();
@@ -58,7 +81,9 @@ class DashboardController extends Controller
                 DB::raw('SUM(subtotal) as total_generado')
             )
             ->with('producto')
-            ->whereHas('venta', fn ($query) => $query->where('estado', 'FINALIZADA'))
+            ->whereHas('venta', fn ($query) => $query
+                ->where('estado', 'FINALIZADA')
+                ->when($sucursalId, fn ($ventaQuery) => $ventaQuery->where('sucursal_id', $sucursalId)))
             ->groupBy('producto_id')
             ->orderByDesc('total_vendido')
             ->limit(5)
@@ -72,7 +97,8 @@ class DashboardController extends Controller
             'stockBajo',
             'productosPorVencer',
             'productosVencidos',
-            'topProductos'
+            'topProductos',
+            'scopeLabel'
         ));
     }
 }

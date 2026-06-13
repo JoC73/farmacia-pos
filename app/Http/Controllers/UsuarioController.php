@@ -13,10 +13,13 @@ class UsuarioController extends Controller
 {
     public function index()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $usuarios = User::with([
             'sucursal',
             'roles'
         ])
+        ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
         ->latest()
         ->paginate(20);
 
@@ -25,9 +28,7 @@ class UsuarioController extends Controller
 
     public function create()
     {
-        $sucursales = Sucursal::where('estado', true)
-            ->orderBy('nombre')
-            ->get();
+        $sucursales = $this->sucursalesPermitidas();
 
         $roles = Role::orderBy('name')
             ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->where('name', '!=', 'Super Usuario'))
@@ -61,6 +62,8 @@ class UsuarioController extends Controller
                 ->withErrors(['rol' => 'No tienes autorizacion para asignar el rol Super Usuario.']);
         }
 
+        $this->authorizeSucursalAccess((int) $request->sucursal_id);
+
         $usuario = User::create([
 
             'name' => $request->name,
@@ -87,9 +90,9 @@ class UsuarioController extends Controller
 
     public function edit(User $usuario)
     {
-        $sucursales = Sucursal::where('estado', true)
-            ->orderBy('nombre')
-            ->get();
+        $this->authorizeSucursalAccess($usuario->sucursal_id);
+
+        $sucursales = $this->sucursalesPermitidas();
 
         $roles = Role::orderBy('name')
             ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->where('name', '!=', 'Super Usuario'))
@@ -125,6 +128,9 @@ class UsuarioController extends Controller
                 ->withErrors(['rol' => 'No tienes autorizacion para modificar usuarios Super Usuario.']);
         }
 
+        $this->authorizeSucursalAccess($usuario->sucursal_id);
+        $this->authorizeSucursalAccess((int) $request->sucursal_id);
+
         $usuario->update([
 
             'name' => $request->name,
@@ -153,6 +159,8 @@ class UsuarioController extends Controller
 
     public function destroy(User $usuario)
     {
+        $this->authorizeSucursalAccess($usuario->sucursal_id);
+
         if ($usuario->id === auth()->id()) {
 
             return redirect()
@@ -165,5 +173,20 @@ class UsuarioController extends Controller
         return redirect()
             ->route('usuarios.index')
             ->with('success', 'Usuario eliminado.');
+    }
+
+    private function sucursalesPermitidas()
+    {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
+        return Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function authorizeSucursalAccess(?int $sucursalId): void
+    {
+        abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
     }
 }

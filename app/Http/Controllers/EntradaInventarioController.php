@@ -13,11 +13,14 @@ class EntradaInventarioController extends Controller
 {
     public function create()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $productos = Producto::where('estado', true)
             ->ordenadoPorNombre()
             ->get();
 
         $sucursales = Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
             ->orderBy('nombre')
             ->get();
 
@@ -42,6 +45,8 @@ class EntradaInventarioController extends Controller
             'observacion' => 'nullable|string|max:500',
 
         ]);
+
+        abort_unless(auth()->user()->canAccessSucursal((int) $request->sucursal_id), 403);
 
         DB::transaction(function () use ($request) {
 

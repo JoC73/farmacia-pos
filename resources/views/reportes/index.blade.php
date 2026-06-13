@@ -29,6 +29,25 @@
 
                 </a>
 
+                @can('reportes.caja')
+                    <a href="{{ route('reportes.movimientos-sucursal') }}"
+                       class="bg-white shadow rounded p-6 hover:bg-gray-50 transition">
+
+                        <h3 class="text-lg font-bold mb-2">
+
+                            Movimientos por Sucursal
+
+                        </h3>
+
+                        <p class="text-gray-600 text-sm">
+
+                            Resumen de ventas, compras, egresos y cajas abiertas.
+
+                        </p>
+
+                    </a>
+                @endcan
+
             </div>
 
         </div>

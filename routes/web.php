@@ -300,6 +300,10 @@ Route::get('/reportes/ventas', [ReporteController::class, 'ventas'])
     ->name('reportes.ventas')
     ->middleware('permission:reportes.ventas');
 
+Route::get('/reportes/movimientos-sucursal', [ReporteController::class, 'movimientosSucursal'])
+    ->name('reportes.movimientos-sucursal')
+    ->middleware('permission:reportes.caja');
+
 /*
 |--------------------------------------------------------------------------
 | ROLES Y PERMISOS

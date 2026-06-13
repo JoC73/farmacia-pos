@@ -19,12 +19,15 @@ class VentaController extends Controller
 {
     public function index()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $ventas = Venta::with([
             'usuario',
             'sucursal',
             'cliente',
             'anulador',
         ])
+        ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
         ->latest()
         ->paginate(20);
 
@@ -234,6 +237,8 @@ MovimientoCaja::create([
 
     public function show(Venta $venta)
     {
+        $this->authorizeSucursalAccess($venta->sucursal_id);
+
         $venta->load([
             'usuario',
             'sucursal',
@@ -247,6 +252,8 @@ MovimientoCaja::create([
 
     public function anular(Request $request, Venta $venta)
     {
+        $this->authorizeSucursalAccess($venta->sucursal_id);
+
         $data = $request->validate([
             'motivo_anulacion' => 'required|string|min:5|max:500',
         ]);
@@ -330,5 +337,10 @@ MovimientoCaja::create([
         return redirect()
             ->route('ventas.show', $venta)
             ->with('success', 'Venta anulada correctamente. Stock y caja fueron revertidos.');
+    }
+
+    private function authorizeSucursalAccess(?int $sucursalId): void
+    {
+        abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
     }
 }

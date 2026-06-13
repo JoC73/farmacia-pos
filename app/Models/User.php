@@ -31,4 +31,22 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Sucursal::class);
     }
+
+    public function canViewAllSucursales(): bool
+    {
+        return $this->hasRole('Super Usuario');
+    }
+
+    public function visibleSucursalId(): ?int
+    {
+        return $this->canViewAllSucursales()
+            ? null
+            : $this->sucursal_id;
+    }
+
+    public function canAccessSucursal(?int $sucursalId): bool
+    {
+        return $this->canViewAllSucursales()
+            || ((int) $this->sucursal_id === (int) $sucursalId);
+    }
 }

@@ -13,10 +13,13 @@ class CajaController extends Controller
 {
     public function index()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $cajas = Caja::with([
             'usuario',
             'sucursal',
         ])
+        ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
         ->latest()
         ->paginate(20);
 
@@ -107,6 +110,8 @@ class CajaController extends Controller
 
     public function createCierre(Caja $caja)
     {
+        $this->authorizeCajaOperation($caja);
+
         if ($caja->estado === 'CERRADA') {
 
             return redirect()
@@ -135,6 +140,8 @@ class CajaController extends Controller
 
     public function storeCierre(Request $request, Caja $caja)
 {
+    $this->authorizeCajaOperation($caja);
+
     $request->validate([
 
         'monto_cierre' => 'required|numeric|min:0',
@@ -239,6 +246,8 @@ class CajaController extends Controller
 
     public function show(Caja $caja)
     {
+        $this->authorizeSucursalAccess($caja);
+
         $caja->load([
             'usuario',
             'sucursal',
@@ -257,12 +266,24 @@ class CajaController extends Controller
 
     private function validarCajaParaEgreso(Caja $caja): void
     {
+        $this->authorizeCajaOperation($caja);
+
         if ($caja->estado === 'CERRADA') {
             abort(403, 'No se pueden registrar egresos en una caja cerrada.');
         }
+    }
+
+    private function authorizeSucursalAccess(Caja $caja): void
+    {
+        abort_unless(auth()->user()->canAccessSucursal($caja->sucursal_id), 403);
+    }
+
+    private function authorizeCajaOperation(Caja $caja): void
+    {
+        $this->authorizeSucursalAccess($caja);
 
         if ($caja->user_id !== auth()->id() && ! auth()->user()->can('caja.ver_cierres')) {
-            abort(403, 'No tienes permiso para registrar egresos en esta caja.');
+            abort(403, 'No tienes permiso para operar esta caja.');
         }
     }
 }

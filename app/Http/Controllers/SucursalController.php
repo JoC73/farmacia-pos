@@ -9,7 +9,10 @@ class SucursalController extends Controller
 {
     public function index()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $sucursales = Sucursal::latest()
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
             ->paginate(20);
 
         return view('sucursales.index', compact('sucursales'));
@@ -56,11 +59,15 @@ class SucursalController extends Controller
 
     public function edit(Sucursal $sucursal)
     {
+        $this->authorizeSucursalAccess($sucursal);
+
         return view('sucursales.edit', compact('sucursal'));
     }
 
     public function update(Request $request, Sucursal $sucursal)
     {
+        $this->authorizeSucursalAccess($sucursal);
+
         $request->validate([
 
             'nombre' => 'required|max:150|unique:sucursales,nombre,' . $sucursal->id,
@@ -90,6 +97,8 @@ class SucursalController extends Controller
 
     public function destroy(Sucursal $sucursal)
     {
+        $this->authorizeSucursalAccess($sucursal);
+
         $sucursal->update([
             'estado' => false,
         ]);
@@ -97,5 +106,10 @@ class SucursalController extends Controller
         return redirect()
             ->route('sucursales.index')
             ->with('success', 'Sucursal desactivada.');
+    }
+
+    private function authorizeSucursalAccess(Sucursal $sucursal): void
+    {
+        abort_unless(auth()->user()->canAccessSucursal($sucursal->id), 403);
     }
 }

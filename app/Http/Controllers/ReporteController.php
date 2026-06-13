@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Caja;
+use App\Models\Compra;
+use App\Models\MovimientoCaja;
 use App\Models\Venta;
 use App\Models\Sucursal;
 use App\Models\User;
@@ -17,11 +20,15 @@ class ReporteController extends Controller
 
     public function ventas(Request $request)
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $query = Venta::with([
             'cliente',
             'usuario',
             'sucursal',
-        ])->where('estado', 'FINALIZADA');
+        ])
+            ->where('estado', 'FINALIZADA')
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId));
 
         /*
         |--------------------------------------------------------------------------
@@ -59,7 +66,7 @@ class ReporteController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if ($request->filled('sucursal_id')) {
+        if (!$sucursalId && $request->filled('sucursal_id')) {
 
             $query->where(
                 'sucursal_id',
@@ -101,10 +108,12 @@ class ReporteController extends Controller
         */
 
         $sucursales = Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
             ->orderBy('nombre')
             ->get();
 
         $usuarios = User::orderBy('name')
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->get();
 
         return view('reportes.ventas', compact(
@@ -113,5 +122,80 @@ class ReporteController extends Controller
             'sucursales',
             'usuarios'
         ));
+    }
+
+    public function movimientosSucursal()
+    {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
+        $sucursales = Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
+            ->orderBy('nombre')
+            ->get();
+
+        $resumen = $sucursales->map(function (Sucursal $sucursal) {
+            $ventasHoy = Venta::where('estado', 'FINALIZADA')
+                ->where('sucursal_id', $sucursal->id)
+                ->whereDate('created_at', today())
+                ->sum('total');
+
+            $ventasMes = Venta::where('estado', 'FINALIZADA')
+                ->where('sucursal_id', $sucursal->id)
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->sum('total');
+
+            $comprasMes = Compra::where('sucursal_id', $sucursal->id)
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->sum('total');
+
+            $egresosMes = MovimientoCaja::where('tipo', 'EGRESO')
+                ->whereHas('caja', fn ($query) => $query->where('sucursal_id', $sucursal->id))
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->sum('monto');
+
+            $cierresHoy = Caja::where('sucursal_id', $sucursal->id)
+                ->where('estado', 'CERRADA')
+                ->whereDate('fecha_cierre', today())
+                ->sum('monto_cierre');
+
+            $cierresMes = Caja::where('sucursal_id', $sucursal->id)
+                ->where('estado', 'CERRADA')
+                ->whereMonth('fecha_cierre', now()->month)
+                ->whereYear('fecha_cierre', now()->year)
+                ->sum('monto_cierre');
+
+            $diferenciaMes = Caja::where('sucursal_id', $sucursal->id)
+                ->where('estado', 'CERRADA')
+                ->whereMonth('fecha_cierre', now()->month)
+                ->whereYear('fecha_cierre', now()->year)
+                ->sum('diferencia');
+
+            $cajasAbiertas = Caja::where('sucursal_id', $sucursal->id)
+                ->where('estado', 'ABIERTA')
+                ->count();
+
+            return [
+                'sucursal' => $sucursal,
+                'ventas_hoy' => $ventasHoy,
+                'ventas_mes' => $ventasMes,
+                'compras_mes' => $comprasMes,
+                'egresos_mes' => $egresosMes,
+                'cierres_hoy' => $cierresHoy,
+                'cierres_mes' => $cierresMes,
+                'diferencia_mes' => $diferenciaMes,
+                'cajas_abiertas' => $cajasAbiertas,
+                'flujo_neto_mes' => $ventasMes - $comprasMes - $egresosMes,
+            ];
+        });
+
+        return view('reportes.movimientos-sucursal', [
+            'resumen' => $resumen,
+            'scopeLabel' => $sucursalId
+                ? (auth()->user()->sucursal?->nombre ?? 'Sucursal asignada')
+                : 'Todas las sucursales',
+        ]);
     }
 }

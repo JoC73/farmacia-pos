@@ -1,9 +1,15 @@
 <x-app-layout>
 
     <x-slot name="header">
-        <h2 class="font-semibold text-lg sm:text-xl text-gray-800 leading-tight">
-            Dashboard Gerencial
-        </h2>
+        <div>
+            <h2 class="font-semibold text-lg sm:text-xl text-gray-800 leading-tight">
+                Dashboard Gerencial
+            </h2>
+
+            <p class="text-sm text-gray-500 mt-1">
+                Vista actual: {{ $scopeLabel }}
+            </p>
+        </div>
     </x-slot>
 
     <div class="py-4 sm:py-6">

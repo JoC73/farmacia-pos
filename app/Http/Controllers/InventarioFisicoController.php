@@ -18,9 +18,7 @@ class InventarioFisicoController extends Controller
 {
     public function index()
     {
-        $sucursales = Sucursal::where('estado', true)
-            ->orderBy('nombre')
-            ->get();
+        $sucursales = $this->sucursalesPermitidas();
 
         return view('inventarios.fisico', [
             'sucursales' => $sucursales,
@@ -35,6 +33,8 @@ class InventarioFisicoController extends Controller
         $data = $request->validate([
             'sucursal_id' => ['required', 'exists:sucursales,id'],
         ]);
+
+        $this->authorizeSucursalAccess((int) $data['sucursal_id']);
 
         $sucursal = Sucursal::findOrFail($data['sucursal_id']);
         $productos = Producto::with([
@@ -92,9 +92,9 @@ class InventarioFisicoController extends Controller
             'archivo' => ['required', 'file', 'mimes:xlsx,csv,txt', 'max:4096'],
         ]);
 
-        $sucursales = Sucursal::where('estado', true)
-            ->orderBy('nombre')
-            ->get();
+        $this->authorizeSucursalAccess((int) $data['sucursal_id']);
+
+        $sucursales = $this->sucursalesPermitidas();
 
         [$previewRows, $importErrors] = $this->parseFile(
             $request->file('archivo'),
@@ -128,6 +128,8 @@ class InventarioFisicoController extends Controller
             'sucursal_id' => ['required', 'exists:sucursales,id'],
             'preview_token' => ['required', 'string'],
         ]);
+
+        $this->authorizeSucursalAccess((int) $data['sucursal_id']);
 
         $preview = session()->pull("inventario_fisico_preview.{$data['preview_token']}");
 
@@ -369,5 +371,20 @@ class InventarioFisicoController extends Controller
             'diferencia' => $fisica - $sistema,
             'observacion' => trim((string) ($row['observacion'] ?? '')),
         ]);
+    }
+
+    private function sucursalesPermitidas()
+    {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
+        return Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function authorizeSucursalAccess(int $sucursalId): void
+    {
+        abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
     }
 }

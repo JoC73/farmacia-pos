@@ -74,6 +74,8 @@ class CargaInicialProductoController extends Controller
             'archivo' => ['required', 'file', 'mimes:xlsx', 'max:4096'],
         ]);
 
+        $this->authorizeSucursalAccess((int) $data['sucursal_id']);
+
         [$previewRows, $importErrors] = $this->parseXlsx(
             $request->file('archivo')->getRealPath()
         );
@@ -107,6 +109,8 @@ class CargaInicialProductoController extends Controller
             'sucursal_id' => ['required', 'exists:sucursales,id'],
             'preview_token' => ['required', 'string'],
         ]);
+
+        $this->authorizeSucursalAccess((int) $data['sucursal_id']);
 
         $preview = session()->pull("carga_inicial_productos.{$data['preview_token']}");
 
@@ -403,8 +407,16 @@ class CargaInicialProductoController extends Controller
 
     private function sucursales()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         return Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
             ->orderBy('nombre')
             ->get();
+    }
+
+    private function authorizeSucursalAccess(int $sucursalId): void
+    {
+        abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
     }
 }

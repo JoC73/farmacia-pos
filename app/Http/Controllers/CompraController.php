@@ -16,11 +16,14 @@ class CompraController extends Controller
 {
     public function index()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $compras = Compra::with([
             'proveedor',
             'usuario',
             'sucursal',
         ])
+        ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
         ->latest()
         ->paginate(20);
 
@@ -231,6 +234,8 @@ foreach ($request->productos as $item) {
 
     public function show(Compra $compra)
     {
+        abort_unless(auth()->user()->canAccessSucursal($compra->sucursal_id), 403);
+
         $compra->load([
             'proveedor',
             'usuario',
