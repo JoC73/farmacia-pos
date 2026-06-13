@@ -5,3 +5,37 @@
 [x-cloak] {
     display: none !important;
 }
+
+body {
+    caret-color: transparent;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+    caret-color: auto;
+}
+
+button,
+a,
+label,
+summary,
+[role="button"],
+input[type="button"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"] {
+    user-select: none;
+}
+
+button,
+a,
+summary,
+[role="button"],
+input[type="button"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"] {
+    cursor: pointer;
+}
