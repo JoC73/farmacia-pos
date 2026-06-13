@@ -13,13 +13,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="font-sans antialiased bg-gray-100">
+<body class="font-sans antialiased bg-gray-100 md:overflow-hidden">
 
-<div x-data="{ mobileMenuOpen: false }" class="min-h-screen md:flex">
+<div x-data="{ mobileMenuOpen: false }" class="min-h-screen md:flex md:h-screen md:overflow-hidden">
 
     @include('layouts.navigation')
 
-    <div class="flex-1 min-w-0 pt-14 md:pt-0">
+    <div class="flex-1 min-w-0 pt-14 md:pt-0 md:flex md:h-screen md:flex-col md:overflow-hidden">
 
         <div class="bg-white border-b border-gray-200 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center gap-4">
 
@@ -44,7 +44,7 @@
 
         </div>
 
-        <main>
+        <main class="md:flex-1 md:overflow-y-auto">
             {{ $slot }}
         </main>
 

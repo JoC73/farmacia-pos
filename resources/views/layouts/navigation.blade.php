@@ -3,7 +3,7 @@
 @endphp
 
 <!-- SIDEBAR DESKTOP -->
-<aside class="hidden md:flex md:flex-col w-64 min-h-screen bg-slate-900 text-white">
+<aside class="hidden md:flex md:h-screen md:w-64 md:flex-col md:overflow-hidden bg-slate-900 text-white">
 
     <div class="p-6 border-b border-slate-700">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
@@ -20,7 +20,7 @@
         </a>
     </div>
 
-    <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+    <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto overscroll-contain">
 
         @can('dashboard.ver')
             <a href="{{ route('dashboard') }}"
@@ -225,7 +225,7 @@
             </button>
         </div>
 
-        <nav class="flex-1 space-y-1 overflow-y-auto px-4 py-5">
+        <nav class="flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 py-5">
 
             @can('dashboard.ver')
                 <a href="{{ route('dashboard') }}"
