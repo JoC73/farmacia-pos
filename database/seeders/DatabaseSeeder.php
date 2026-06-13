@@ -15,10 +15,6 @@ class DatabaseSeeder extends Seeder
         // Ejecutar roles y permisos
         $this->call(RolesPermisosSeeder::class);
 
-        $adminEmail = env('ADMIN_EMAIL', 'admin@farmacia.com');
-        $adminPassword = env('ADMIN_PASSWORD', '123456');
-        $adminName = env('ADMIN_NAME', 'Admin');
-
         // Crear sucursal
         $sucursal = Sucursal::firstOrCreate(
             ['nombre' => 'Farmacia Central'],
@@ -28,6 +24,17 @@ class DatabaseSeeder extends Seeder
                 'estado' => true
             ]
         );
+
+        $adminEmail = env('ADMIN_EMAIL');
+        $adminPassword = env('ADMIN_PASSWORD');
+        $adminName = env('ADMIN_NAME', 'Admin');
+
+        if (app()->environment('production') && (! $adminEmail || ! $adminPassword)) {
+            return;
+        }
+
+        $adminEmail = $adminEmail ?: 'admin@farmacia.com';
+        $adminPassword = $adminPassword ?: '123456';
 
         // Crear rol administrador
         $role = Role::firstOrCreate([

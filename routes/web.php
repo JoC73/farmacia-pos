@@ -155,6 +155,8 @@ Route::resource('clientes', ClienteController::class)
 
 });
 
+Route::middleware('auth')->group(function () {
+
 Route::get('/ventas/{venta}', [VentaController::class, 'show'])
     ->name('ventas.show')
     ->middleware('permission:ventas.ver');
@@ -341,6 +343,8 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/premium/modulos/{module}/toggle', [PremiumModuleController::class, 'toggle'])
         ->name('premium.toggle')
         ->middleware('role:Super Usuario');
+});
+
 });
     
 
