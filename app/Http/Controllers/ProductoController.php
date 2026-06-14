@@ -10,7 +10,13 @@ class ProductoController extends Controller
 {
     public function index()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $productos = Producto::with('categoria')
+            ->when($sucursalId, fn ($query) => $query->whereHas(
+                'inventarios',
+                fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
+            ))
             ->ordenadoPorNombre()
             ->paginate(10);
 
@@ -19,6 +25,8 @@ class ProductoController extends Controller
 
     public function create()
     {
+        $this->authorizeGlobalProductManagement();
+
         $categorias = Categoria::where('estado', true)
             ->orderBy('nombre')
             ->get();
@@ -28,6 +36,8 @@ class ProductoController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeGlobalProductManagement();
+
         $request->validate([
 
             'categoria_id' => 'nullable|exists:categorias,id',
@@ -86,6 +96,8 @@ class ProductoController extends Controller
 
     public function edit(Producto $producto)
     {
+        $this->authorizeGlobalProductManagement();
+
         $categorias = Categoria::where('estado', true)
             ->orderBy('nombre')
             ->get();
@@ -98,6 +110,8 @@ class ProductoController extends Controller
 
     public function update(Request $request, Producto $producto)
     {
+        $this->authorizeGlobalProductManagement();
+
         $request->validate([
 
             'categoria_id' => 'nullable|exists:categorias,id',
@@ -153,6 +167,8 @@ class ProductoController extends Controller
 
     public function destroy(Producto $producto)
     {
+        $this->authorizeGlobalProductManagement();
+
         $producto->update([
             'estado' => false,
         ]);
@@ -160,5 +176,10 @@ class ProductoController extends Controller
         return redirect()
             ->route('productos.index')
             ->with('success', 'Producto desactivado correctamente.');
+    }
+
+    private function authorizeGlobalProductManagement(): void
+    {
+        abort_unless(auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']), 403);
     }
 }

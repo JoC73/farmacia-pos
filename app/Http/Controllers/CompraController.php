@@ -49,7 +49,9 @@ class CompraController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'proveedor_id' => 'required|exists:proveedors,id',
+            'proveedor_id' => 'required|exists:proveedores,id',
+
+            'numero_factura' => 'nullable|string|max:120',
 
             'productos' => 'required|array|min:1',
 
@@ -57,7 +59,9 @@ class CompraController extends Controller
 
             'productos.*.cantidad' => 'required|integer|min:1',
 
-            'productos.*.costo' => 'required|numeric|min:0',
+            'productos.*.costo' => 'required|numeric|min:0.01',
+
+            'observacion' => 'nullable|string|max:500',
 
         ]);
 
@@ -91,12 +95,6 @@ if (!$user->sucursal_id) {
 foreach ($request->productos as $item) {
 
     $producto = Producto::findOrFail($item['producto_id']);
-
-    if ($item['costo'] <= 0) {
-
-        abort(400, 'El costo del producto debe ser mayor a 0.');
-    }
-
 
                 $subtotal =
                     $item['costo'] * $item['cantidad'];

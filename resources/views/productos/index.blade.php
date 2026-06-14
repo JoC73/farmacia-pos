@@ -1,4 +1,8 @@
 <x-app-layout>
+    @php
+        $canManageGlobalProducts = Auth::user()->hasAnyRole(['Administrador Global', 'Super Usuario']);
+    @endphp
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Productos
@@ -16,12 +20,12 @@
 
             <div class="mb-4 flex gap-2">
 
-                @can('productos.crear')
+                @if($canManageGlobalProducts)
                     <a href="{{ route('productos.create') }}"
                        class="px-4 py-2 bg-blue-600 text-white rounded">
                         Nuevo Producto
                     </a>
-                @endcan
+                @endif
 
                 @can('categorias.ver')
                     <a href="{{ route('categorias.index') }}"
@@ -85,14 +89,12 @@
 
                                 <td class="p-2 border whitespace-nowrap">
 
-                                    @can('productos.editar')
+                                    @if($canManageGlobalProducts)
                                         <a href="{{ route('productos.edit', $producto) }}"
                                            class="text-blue-600">
                                             Editar
                                         </a>
-                                    @endcan
 
-                                    @can('productos.eliminar')
                                         <form action="{{ route('productos.destroy', $producto) }}"
                                               method="POST"
                                               class="inline">
@@ -105,15 +107,13 @@
                                                 Desactivar
                                             </button>
                                         </form>
-                                    @endcan
+                                    @endif
 
-                                    @cannot('productos.editar')
-                                        @cannot('productos.eliminar')
-                                            <span class="text-gray-400">
-                                                Sin acciones
-                                            </span>
-                                        @endcannot
-                                    @endcannot
+                                    @unless($canManageGlobalProducts)
+                                        <span class="text-gray-400">
+                                            Gestion global protegida
+                                        </span>
+                                    @endunless
 
                                 </td>
                             </tr>
