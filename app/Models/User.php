@@ -34,7 +34,7 @@ class User extends Authenticatable
 
     public function canViewAllSucursales(): bool
     {
-        return $this->hasRole('Super Usuario');
+        return $this->hasAnyRole(['Super Usuario', 'Administrador Global']);
     }
 
     public function visibleSucursalId(): ?int

@@ -163,7 +163,7 @@ Route::get('/ventas/{venta}', [VentaController::class, 'show'])
 
 Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular'])
     ->name('ventas.anular')
-    ->middleware(['permission:ventas.anular', 'role:Administrador|Super Usuario']);
+    ->middleware(['permission:ventas.anular', 'role:Administrador|Administrador Global|Super Usuario']);
 
 
     /*

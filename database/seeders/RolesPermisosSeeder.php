@@ -85,6 +85,11 @@ class RolesPermisosSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
+        $adminGlobal = Role::firstOrCreate([
+            'name' => 'Administrador Global',
+            'guard_name' => 'web',
+        ]);
+
         $cajero = Role::firstOrCreate([
             'name' => 'Cajero',
             'guard_name' => 'web',
@@ -101,6 +106,7 @@ class RolesPermisosSeeder extends Seeder
         ]);
 
         $admin->syncPermissions(Permission::all());
+        $adminGlobal->syncPermissions(Permission::all());
         $superUsuario->syncPermissions(Permission::all());
 
         $cajero->syncPermissions([

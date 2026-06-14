@@ -31,7 +31,7 @@ class UsuarioController extends Controller
         $sucursales = $this->sucursalesPermitidas();
 
         $roles = Role::orderBy('name')
-            ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->where('name', '!=', 'Super Usuario'))
+            ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->whereNotIn('name', $this->superOnlyRoles()))
             ->get();
 
         return view('usuarios.create', compact(
@@ -56,10 +56,10 @@ class UsuarioController extends Controller
 
         ]);
 
-        if ($request->rol === 'Super Usuario' && ! auth()->user()->hasRole('Super Usuario')) {
+        if (in_array($request->rol, $this->superOnlyRoles(), true) && ! auth()->user()->hasRole('Super Usuario')) {
             return back()
                 ->withInput()
-                ->withErrors(['rol' => 'No tienes autorizacion para asignar el rol Super Usuario.']);
+                ->withErrors(['rol' => 'No tienes autorizacion para asignar este rol.']);
         }
 
         $this->authorizeSucursalAccess((int) $request->sucursal_id);
@@ -95,7 +95,7 @@ class UsuarioController extends Controller
         $sucursales = $this->sucursalesPermitidas();
 
         $roles = Role::orderBy('name')
-            ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->where('name', '!=', 'Super Usuario'))
+            ->when(! auth()->user()->hasRole('Super Usuario'), fn ($query) => $query->whereNotIn('name', $this->superOnlyRoles()))
             ->get();
 
         return view('usuarios.edit', compact(
@@ -120,12 +120,12 @@ class UsuarioController extends Controller
         ]);
 
         if (
-            ($request->rol === 'Super Usuario' || $usuario->hasRole('Super Usuario'))
+            (in_array($request->rol, $this->superOnlyRoles(), true) || $usuario->hasAnyRole($this->superOnlyRoles()))
             && ! auth()->user()->hasRole('Super Usuario')
         ) {
             return back()
                 ->withInput()
-                ->withErrors(['rol' => 'No tienes autorizacion para modificar usuarios Super Usuario.']);
+                ->withErrors(['rol' => 'No tienes autorizacion para modificar usuarios con este rol.']);
         }
 
         $this->authorizeSucursalAccess($usuario->sucursal_id);
@@ -188,5 +188,10 @@ class UsuarioController extends Controller
     private function authorizeSucursalAccess(?int $sucursalId): void
     {
         abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
+    }
+
+    private function superOnlyRoles(): array
+    {
+        return ['Super Usuario', 'Administrador Global'];
     }
 }
