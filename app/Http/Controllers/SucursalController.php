@@ -68,6 +68,10 @@ class SucursalController extends Controller
     {
         $this->authorizeSucursalAccess($sucursal);
 
+        if (! $sucursal->estado && $request->has('estado') && ! auth()->user()->hasRole('Super Usuario')) {
+            abort(403, 'Solo el Super Usuario puede reactivar sucursales.');
+        }
+
         $request->validate([
 
             'nombre' => 'required|max:150|unique:sucursales,nombre,' . $sucursal->id,
@@ -98,6 +102,10 @@ class SucursalController extends Controller
     public function destroy(Sucursal $sucursal)
     {
         $this->authorizeSucursalAccess($sucursal);
+
+        if (! $sucursal->estado && ! auth()->user()->hasRole('Super Usuario')) {
+            abort(403, 'Solo el Super Usuario puede reactivar sucursales.');
+        }
 
         $sucursal->update([
             'estado' => ! $sucursal->estado,

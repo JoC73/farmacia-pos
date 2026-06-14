@@ -55,13 +55,19 @@
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox"
-                                       name="estado"
-                                       value="1"
-                                       {{ $sucursal->estado ? 'checked' : '' }}>
-                                <span class="ml-2">Sucursal activa</span>
-                            </label>
+                            @if($sucursal->estado || Auth::user()->hasRole('Super Usuario'))
+                                <label class="inline-flex items-center">
+                                    <input type="checkbox"
+                                           name="estado"
+                                           value="1"
+                                           {{ $sucursal->estado ? 'checked' : '' }}>
+                                    <span class="ml-2">Sucursal activa</span>
+                                </label>
+                            @else
+                                <div class="text-sm text-gray-500">
+                                    La reactivacion de sucursales solo puede realizarla el Super Usuario.
+                                </div>
+                            @endif
                         </div>
                     </div>
 

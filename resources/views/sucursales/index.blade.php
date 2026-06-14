@@ -1,6 +1,7 @@
 <x-app-layout>
     @php
         $branchCreationEnabled = \App\Models\PremiumModule::enabled('branch_creation') || Auth::user()->hasRole('Super Usuario');
+        $canReactivateBranches = Auth::user()->hasRole('Super Usuario');
     @endphp
 
     <x-slot name="header">
@@ -73,18 +74,24 @@
         Editar
     </a>
 
-    <form method="POST"
-          action="{{ route('sucursales.destroy', $sucursal) }}"
-          class="inline">
-        @csrf
-        @method('DELETE')
+    @if($sucursal->estado || $canReactivateBranches)
+        <form method="POST"
+              action="{{ route('sucursales.destroy', $sucursal) }}"
+              class="inline">
+            @csrf
+            @method('DELETE')
 
-        <button type="submit"
-                onclick="return confirm('{{ $sucursal->estado ? '¿Desactivar sucursal?' : '¿Reactivar sucursal?' }}')"
-                class="{{ $sucursal->estado ? 'text-red-600' : 'text-green-700' }} ml-3">
-            {{ $sucursal->estado ? 'Desactivar' : 'Reactivar' }}
-        </button>
-    </form>
+            <button type="submit"
+                    onclick="return confirm('{{ $sucursal->estado ? '¿Desactivar sucursal?' : '¿Reactivar sucursal?' }}')"
+                    class="{{ $sucursal->estado ? 'text-red-600' : 'text-green-700' }} ml-3">
+                {{ $sucursal->estado ? 'Desactivar' : 'Reactivar' }}
+            </button>
+        </form>
+    @else
+        <span class="ml-3 text-xs font-semibold text-gray-400">
+            Reactivacion solo Super Usuario
+        </span>
+    @endif
 </td>
                             </tr>
                         @empty
