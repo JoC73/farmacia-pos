@@ -8,11 +8,14 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolesPermisosSeeder extends Seeder
 {
     public function run(): void
     {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $permisos = [
             'dashboard.ver',
 
@@ -149,5 +152,7 @@ class RolesPermisosSeeder extends Seeder
 
             $user->syncRoles([$superUsuario]);
         }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }
