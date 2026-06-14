@@ -9,6 +9,12 @@
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow rounded p-6">
 
+                @unless($sucursal->estado)
+                    <div class="mb-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded">
+                        Esta sucursal se encuentra inhabilitada. Puede revisar sus datos o reactivarla marcando la casilla "Sucursal activa".
+                    </div>
+                @endunless
+
                 @if ($errors->any())
                     <div class="mb-4 bg-red-100 border border-red-300 text-red-700 p-4 rounded">
                         <ul class="list-disc list-inside">

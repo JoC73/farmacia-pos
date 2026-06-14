@@ -100,12 +100,14 @@ class SucursalController extends Controller
         $this->authorizeSucursalAccess($sucursal);
 
         $sucursal->update([
-            'estado' => false,
+            'estado' => ! $sucursal->estado,
         ]);
 
         return redirect()
             ->route('sucursales.index')
-            ->with('success', 'Sucursal desactivada.');
+            ->with('success', $sucursal->estado
+                ? 'Sucursal reactivada correctamente.'
+                : 'Sucursal inhabilitada correctamente.');
     }
 
     private function authorizeSucursalAccess(Sucursal $sucursal): void

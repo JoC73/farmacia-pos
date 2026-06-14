@@ -42,12 +42,30 @@
                     </thead>
                     <tbody>
                         @forelse($sucursales as $sucursal)
-                            <tr>
-                                <td class="p-2 border">{{ $sucursal->nombre }}</td>
+                            <tr class="{{ $sucursal->estado ? '' : 'bg-gray-50 text-gray-500' }}">
+                                <td class="p-2 border">
+                                    <div class="font-semibold {{ $sucursal->estado ? 'text-gray-900' : 'text-gray-500 line-through' }}">
+                                        {{ $sucursal->nombre }}
+                                    </div>
+
+                                    @unless($sucursal->estado)
+                                        <div class="text-xs text-red-600 mt-1">
+                                            Sucursal inhabilitada
+                                        </div>
+                                    @endunless
+                                </td>
                                 <td class="p-2 border">{{ $sucursal->direccion ?? '-' }}</td>
                                 <td class="p-2 border">{{ $sucursal->telefono ?? '-' }}</td>
-                                <td class="p-2 border">
-                                    {{ $sucursal->estado ? 'ACTIVA' : 'INACTIVA' }}
+                                <td class="p-2 border text-center">
+                                    @if($sucursal->estado)
+                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-700">
+                                            ACTIVA
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-700">
+                                            INHABILITADA
+                                        </span>
+                                    @endif
                                 </td>
 <td class="p-2 border">
     <a href="{{ route('sucursales.edit', $sucursal) }}"
@@ -62,9 +80,9 @@
         @method('DELETE')
 
         <button type="submit"
-                onclick="return confirm('¿Desactivar sucursal?')"
-                class="text-red-600 ml-3">
-            Desactivar
+                onclick="return confirm('{{ $sucursal->estado ? '¿Desactivar sucursal?' : '¿Reactivar sucursal?' }}')"
+                class="{{ $sucursal->estado ? 'text-red-600' : 'text-green-700' }} ml-3">
+            {{ $sucursal->estado ? 'Desactivar' : 'Reactivar' }}
         </button>
     </form>
 </td>
