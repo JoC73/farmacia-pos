@@ -13,13 +13,15 @@ class CajaController extends Controller
 {
     public function index()
     {
-        $sucursalId = auth()->user()->visibleSucursalId();
+        $user = auth()->user();
+        $sucursalId = $user->visibleSucursalId();
 
         $cajas = Caja::with([
             'usuario',
             'sucursal',
         ])
         ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
+        ->when(! $user->can('caja.ver_cierres'), fn ($query) => $query->where('user_id', $user->id))
         ->latest()
         ->paginate(20);
 
@@ -246,7 +248,7 @@ class CajaController extends Controller
 
     public function show(Caja $caja)
     {
-        $this->authorizeSucursalAccess($caja);
+        $this->authorizeCajaVisibility($caja);
 
         $caja->load([
             'usuario',
@@ -284,6 +286,15 @@ class CajaController extends Controller
 
         if ($caja->user_id !== auth()->id() && ! auth()->user()->can('caja.ver_cierres')) {
             abort(403, 'No tienes permiso para operar esta caja.');
+        }
+    }
+
+    private function authorizeCajaVisibility(Caja $caja): void
+    {
+        $this->authorizeSucursalAccess($caja);
+
+        if ($caja->user_id !== auth()->id() && ! auth()->user()->can('caja.ver_cierres')) {
+            abort(403, 'No tienes permiso para ver esta caja.');
         }
     }
 }

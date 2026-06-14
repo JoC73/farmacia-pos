@@ -79,6 +79,14 @@ Route::middleware('auth')->group(function () {
         ->name('inventarios.index')
         ->middleware('permission:inventario.ver');
 
+    Route::get('/inventarios/{inventario}/ajustar', [InventarioController::class, 'ajustar'])
+        ->name('inventarios.ajustar')
+        ->middleware(['permission:inventario.ajustar', 'role:Administrador|Administrador Global|Super Usuario']);
+
+    Route::patch('/inventarios/{inventario}/ajustar', [InventarioController::class, 'actualizarExistencia'])
+        ->name('inventarios.ajustar.update')
+        ->middleware(['permission:inventario.ajustar', 'role:Administrador|Administrador Global|Super Usuario']);
+
     Route::get('/inventarios/fisico', [InventarioFisicoController::class, 'index'])
         ->name('inventarios.fisico')
         ->middleware(['permission:inventario.ajustar', 'premium:physical_inventory']);
@@ -206,7 +214,7 @@ Route::get('/compras/{compra}', [CompraController::class, 'show'])
 */
 Route::get('/cajas', [CajaController::class, 'index'])
     ->name('cajas.index')
-    ->middleware('permission:caja.ver_cierres');
+    ->middleware('permission:caja.abrir|caja.ver_cierres');
 
 Route::get('/cajas/apertura', [CajaController::class, 'createApertura'])
     ->name('cajas.apertura')
@@ -234,7 +242,7 @@ Route::post('/cajas/{caja}/egreso', [CajaController::class, 'storeEgreso'])
 
 Route::get('/cajas/{caja}', [CajaController::class, 'show'])
     ->name('cajas.show')
-    ->middleware('permission:caja.ver_cierres');
+    ->middleware('permission:caja.abrir|caja.ver_cierres');
 
 /*
 |--------------------------------------------------------------------------

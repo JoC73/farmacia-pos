@@ -88,12 +88,12 @@
             </a>
         @endcan
 
-        @can('caja.ver_cierres')
+        @canany(['caja.abrir', 'caja.ver_cierres'])
             <a href="{{ route('cajas.index') }}"
                class="block px-4 py-3 rounded-lg {{ request()->routeIs('cajas.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 Cajas
             </a>
-        @endcan
+        @endcanany
 
         @can('sucursales.ver')
             <a href="{{ route('sucursales.index') }}"
@@ -284,12 +284,12 @@
                 </a>
             @endcan
 
-            @can('caja.ver_cierres')
+            @canany(['caja.abrir', 'caja.ver_cierres'])
                 <a href="{{ route('cajas.index') }}"
                    class="block rounded-lg px-4 py-3 {{ request()->routeIs('cajas.*') ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                     Cajas
                 </a>
-            @endcan
+            @endcanany
 
             @can('sucursales.ver')
                 <a href="{{ route('sucursales.index') }}"

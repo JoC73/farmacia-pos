@@ -1,4 +1,8 @@
 <x-app-layout>
+    @php
+        $canAdjustInventory = Auth::user()->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']);
+    @endphp
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Inventario por Sucursal
@@ -15,12 +19,12 @@
             @endif
 
             <div class="mb-4 flex flex-wrap gap-2">
-                <a href="{{ route('inventarios.entrada') }}"
-                   class="px-4 py-2 bg-blue-600 text-white rounded">
-                    Nueva Entrada
-                </a>
-
                 @can('inventario.ajustar')
+                    <a href="{{ route('inventarios.entrada') }}"
+                       class="px-4 py-2 bg-blue-600 text-white rounded">
+                        Nueva Entrada
+                    </a>
+
                     <a href="{{ route('inventarios.carga-inicial') }}"
                        class="px-4 py-2 bg-indigo-700 text-white rounded">
                         Carga Inicial
@@ -44,6 +48,9 @@
                             <th class="p-2 border">Existencia</th>
                             <th class="p-2 border">Stock mínimo</th>
                             <th class="p-2 border">Estado</th>
+                            @if($canAdjustInventory)
+                                <th class="p-2 border">Acciones</th>
+                            @endif
                         </tr>
                     </thead>
 
@@ -77,10 +84,18 @@
                                         </span>
                                     @endif
                                 </td>
+                                @if($canAdjustInventory)
+                                    <td class="p-2 border text-center">
+                                        <a href="{{ route('inventarios.ajustar', $inventario) }}"
+                                           class="inline-flex items-center px-3 py-1 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700">
+                                            Ajustar
+                                        </a>
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="p-4 text-center text-gray-500">
+                                <td colspan="{{ $canAdjustInventory ? 6 : 5 }}" class="p-4 text-center text-gray-500">
                                     No hay inventario registrado.
                                 </td>
                             </tr>
