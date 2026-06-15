@@ -18,7 +18,7 @@
                 </div>
             @endif
 
-            <div class="mb-4 flex gap-2">
+            <div class="mb-4 flex flex-wrap gap-2">
 
                 @if($canManageGlobalProducts)
                     <a href="{{ route('productos.create') }}"
@@ -36,7 +36,69 @@
 
             </div>
 
+            <form method="GET" action="{{ route('productos.index') }}" class="mb-4 bg-white shadow rounded p-4">
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_150px_auto_auto] md:items-end">
+                    <div>
+                        <label for="q" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Buscar
+                        </label>
+                        <input type="search"
+                               id="q"
+                               name="q"
+                               value="{{ $search }}"
+                               placeholder="Nombre, codigo o laboratorio"
+                               class="w-full rounded border-gray-300">
+                    </div>
+
+                    <div>
+                        <label for="categoria_id" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Categoria
+                        </label>
+                        <select id="categoria_id"
+                                name="categoria_id"
+                                class="w-full rounded border-gray-300">
+                            <option value="">Todas</option>
+                            @foreach($categorias as $categoria)
+                                <option value="{{ $categoria->id }}" @selected((string) $categoriaId === (string) $categoria->id)>
+                                    {{ $categoria->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="per_page" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Mostrar
+                        </label>
+                        <select id="per_page"
+                                name="per_page"
+                                class="w-full rounded border-gray-300">
+                            @foreach([25, 50, 100, 200] as $option)
+                                <option value="{{ $option }}" @selected($perPage === $option)>
+                                    {{ $option }} registros
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded">
+                        Filtrar
+                    </button>
+
+                    <a href="{{ route('productos.index') }}"
+                       class="px-4 py-2 bg-gray-600 text-white rounded text-center">
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+
             <div class="bg-white shadow rounded p-4 overflow-x-auto">
+                <div class="mb-3 text-sm text-gray-600">
+                    Mostrando {{ $productos->firstItem() ?? 0 }}-{{ $productos->lastItem() ?? 0 }}
+                    de {{ $productos->total() }} productos
+                </div>
+
                 <table class="w-full border text-sm">
                     <thead>
                         <tr class="bg-gray-100">

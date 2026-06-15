@@ -39,7 +39,84 @@
                 @endcan
             </div>
 
+            <form method="GET" action="{{ route('inventarios.index') }}" class="mb-4 bg-white shadow rounded p-4">
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_150px_auto_auto] md:items-end">
+                    <div>
+                        <label for="q" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Buscar
+                        </label>
+                        <input type="search"
+                               id="q"
+                               name="q"
+                               value="{{ $search }}"
+                               placeholder="Producto, codigo, laboratorio o sucursal"
+                               class="w-full rounded border-gray-300">
+                    </div>
+
+                    @if($sucursales->isNotEmpty())
+                        <div>
+                            <label for="sucursal_id" class="block text-sm font-semibold text-gray-700 mb-1">
+                                Sucursal
+                            </label>
+                            <select id="sucursal_id"
+                                    name="sucursal_id"
+                                    class="w-full rounded border-gray-300">
+                                <option value="">Todas</option>
+                                @foreach($sucursales as $sucursal)
+                                    <option value="{{ $sucursal->id }}" @selected((string) $selectedSucursalId === (string) $sucursal->id)>
+                                        {{ $sucursal->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
+                    <div>
+                        <label for="estado_stock" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Estado
+                        </label>
+                        <select id="estado_stock"
+                                name="estado_stock"
+                                class="w-full rounded border-gray-300">
+                            <option value="">Todos</option>
+                            <option value="bajo" @selected($estadoStock === 'bajo')>Stock bajo</option>
+                            <option value="normal" @selected($estadoStock === 'normal')>Normal</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="per_page" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Mostrar
+                        </label>
+                        <select id="per_page"
+                                name="per_page"
+                                class="w-full rounded border-gray-300">
+                            @foreach([25, 50, 100, 200] as $option)
+                                <option value="{{ $option }}" @selected($perPage === $option)>
+                                    {{ $option }} registros
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded">
+                        Filtrar
+                    </button>
+
+                    <a href="{{ route('inventarios.index') }}"
+                       class="px-4 py-2 bg-gray-600 text-white rounded text-center">
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+
             <div class="bg-white shadow rounded p-4 overflow-x-auto">
+                <div class="mb-3 text-sm text-gray-600">
+                    Mostrando {{ $inventarios->firstItem() ?? 0 }}-{{ $inventarios->lastItem() ?? 0 }}
+                    de {{ $inventarios->total() }} registros de inventario
+                </div>
+
                 <table class="w-full border text-sm">
                     <thead>
                         <tr class="bg-gray-100">

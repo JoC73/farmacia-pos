@@ -8,9 +8,12 @@ use Illuminate\Http\Request;
 
 class ProductoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $sucursalId = auth()->user()->visibleSucursalId();
+        $perPage = $this->validPerPage($request->integer('per_page', 50));
+        $search = trim((string) $request->input('q', ''));
+        $categoriaId = $request->input('categoria_id');
 
         $productos = Producto::with('categoria')
             ->where('estado', true)
@@ -18,10 +21,28 @@ class ProductoController extends Controller
                 'inventarios',
                 fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
             ))
+            ->when($search !== '', fn ($query) => $query->where(function ($subquery) use ($search) {
+                $subquery
+                    ->where('nombre', 'like', "%{$search}%")
+                    ->orWhere('codigo_barra', 'like', "%{$search}%")
+                    ->orWhere('laboratorio', 'like', "%{$search}%");
+            }))
+            ->when($categoriaId, fn ($query) => $query->where('categoria_id', $categoriaId))
             ->ordenadoPorNombre()
-            ->paginate(10);
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return view('productos.index', compact('productos'));
+        $categorias = Categoria::where('estado', true)
+            ->orderBy('nombre')
+            ->get();
+
+        return view('productos.index', compact(
+            'productos',
+            'categorias',
+            'perPage',
+            'search',
+            'categoriaId'
+        ));
     }
 
     public function create()
@@ -182,5 +203,10 @@ class ProductoController extends Controller
     private function authorizeGlobalProductManagement(): void
     {
         abort_unless(auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']), 403);
+    }
+
+    private function validPerPage(int $perPage): int
+    {
+        return in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
     }
 }

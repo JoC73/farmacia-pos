@@ -4,14 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Inventario;
 use App\Models\MovimientoInventario;
+use App\Models\Sucursal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class InventarioController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $sucursalId = auth()->user()->visibleSucursalId();
+        $perPage = $this->validPerPage($request->integer('per_page', 50));
+        $search = trim((string) $request->input('q', ''));
+        $estadoStock = $request->input('estado_stock');
+        $selectedSucursalId = auth()->user()->canViewAllSucursales()
+            ? $request->input('sucursal_id')
+            : null;
 
         $inventarios = Inventario::with([
             'producto',
@@ -22,11 +29,33 @@ class InventarioController extends Controller
         ->select('inventarios.*')
         ->where('productos.estado', true)
         ->when($sucursalId, fn ($query) => $query->where('inventarios.sucursal_id', $sucursalId))
+        ->when($selectedSucursalId, fn ($query) => $query->where('inventarios.sucursal_id', $selectedSucursalId))
+        ->when($search !== '', fn ($query) => $query->where(function ($subquery) use ($search) {
+            $subquery
+                ->where('productos.nombre', 'like', "%{$search}%")
+                ->orWhere('productos.codigo_barra', 'like', "%{$search}%")
+                ->orWhere('productos.laboratorio', 'like', "%{$search}%")
+                ->orWhere('sucursales.nombre', 'like', "%{$search}%");
+        }))
+        ->when($estadoStock === 'bajo', fn ($query) => $query->whereColumn('inventarios.existencia', '<=', 'productos.stock_minimo'))
+        ->when($estadoStock === 'normal', fn ($query) => $query->whereColumn('inventarios.existencia', '>', 'productos.stock_minimo'))
         ->orderByRaw('LOWER(productos.nombre)')
         ->orderByRaw("LOWER(COALESCE(sucursales.nombre, ''))")
-        ->paginate(20);
+        ->paginate($perPage)
+        ->withQueryString();
 
-        return view('inventarios.index', compact('inventarios'));
+        $sucursales = auth()->user()->canViewAllSucursales()
+            ? Sucursal::where('estado', true)->orderBy('nombre')->get()
+            : collect();
+
+        return view('inventarios.index', compact(
+            'inventarios',
+            'perPage',
+            'search',
+            'estadoStock',
+            'selectedSucursalId',
+            'sucursales'
+        ));
     }
 
     public function ajustar(Inventario $inventario)
@@ -86,5 +115,10 @@ class InventarioController extends Controller
     {
         abort_unless(auth()->user()->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']), 403);
         abort_unless(auth()->user()->canAccessSucursal($inventario->sucursal_id), 403);
+    }
+
+    private function validPerPage(int $perPage): int
+    {
+        return in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
     }
 }
