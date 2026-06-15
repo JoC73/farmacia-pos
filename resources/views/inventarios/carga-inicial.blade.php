@@ -31,9 +31,9 @@
                 </h3>
 
                 <p class="text-sm text-gray-600">
-                    Este modulo premium permite crear productos nuevos desde Excel y registrar su existencia inicial
-                    en una sucursal. Si no se coloca codigo_barra, el sistema generara un codigo interno consecutivo
-                    como 001, 002, 003.
+                    Este modulo premium permite crear o actualizar productos globales desde Excel y registrar su
+                    existencia inicial en una o varias sucursales. Si no se coloca codigo_barra, el sistema intentara
+                    reconocer el producto por nombre/laboratorio antes de generar un codigo interno.
                 </p>
             </div>
 
@@ -63,17 +63,25 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700">
-                                Sucursal
+                                Sucursales a afectar
                             </label>
 
-                            <select name="sucursal_id" required class="mt-1 block w-full rounded border-gray-300">
-                                <option value="">Selecciona una sucursal</option>
+                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 @foreach ($sucursales as $sucursal)
-                                    <option value="{{ $sucursal->id }}" @selected($selectedSucursal === $sucursal->id)>
-                                        {{ $sucursal->nombre }}
-                                    </option>
+                                    <label class="flex items-center gap-2 rounded border border-gray-200 p-2 text-sm">
+                                        <input type="checkbox"
+                                               name="sucursal_ids[]"
+                                               value="{{ $sucursal->id }}"
+                                               @checked(in_array($sucursal->id, $selectedSucursales ?? [], true))
+                                               class="rounded border-gray-300">
+                                        <span>{{ $sucursal->nombre }}</span>
+                                    </label>
                                 @endforeach
-                            </select>
+                            </div>
+
+                            <p class="mt-1 text-xs text-gray-500">
+                                La existencia del Excel se aplicara por igual a cada sucursal seleccionada.
+                            </p>
                         </div>
 
                         <div>
@@ -99,13 +107,15 @@
                                 Vista previa
                             </h3>
                             <p class="text-sm text-gray-600">
-                                Revisa los productos antes de aplicar la carga inicial.
+                                Revisa los productos antes de aplicar la carga inicial en {{ count($selectedSucursales ?? []) }} sucursal(es).
                             </p>
                         </div>
 
                         <form method="POST" action="{{ route('inventarios.carga-inicial.confirmar') }}">
                             @csrf
-                            <input type="hidden" name="sucursal_id" value="{{ $selectedSucursal }}">
+                            @foreach (($selectedSucursales ?? []) as $sucursalId)
+                                <input type="hidden" name="sucursal_ids[]" value="{{ $sucursalId }}">
+                            @endforeach
                             <input type="hidden" name="preview_token" value="{{ $previewToken }}">
 
                             <button type="submit"

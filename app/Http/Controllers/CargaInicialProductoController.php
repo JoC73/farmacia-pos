@@ -22,7 +22,7 @@ class CargaInicialProductoController extends Controller
             'sucursales' => $this->sucursales(),
             'previewRows' => collect(),
             'importErrors' => collect(),
-            'selectedSucursal' => null,
+            'selectedSucursales' => [],
             'previewToken' => null,
         ]);
     }
@@ -49,14 +49,14 @@ class CargaInicialProductoController extends Controller
         $writer->addRow(Row::fromValues([
             '',
             'Acetaminofen 500mg',
-            'Analgésicos',
+            'Analgesicos',
             'Generico',
             0.50,
             1.25,
             10,
             '2027-12-31',
             100,
-            'Ejemplo. Puede borrar esta fila.',
+            'La existencia se aplicara a las sucursales seleccionadas.',
         ]));
         $writer->close();
 
@@ -70,11 +70,13 @@ class CargaInicialProductoController extends Controller
     public function preview(Request $request)
     {
         $data = $request->validate([
-            'sucursal_id' => ['required', 'exists:sucursales,id'],
+            'sucursal_ids' => ['required', 'array', 'min:1'],
+            'sucursal_ids.*' => ['required', 'integer', 'exists:sucursales,id'],
             'archivo' => ['required', 'file', 'mimes:xlsx', 'max:4096'],
         ]);
 
-        $this->authorizeSucursalAccess((int) $data['sucursal_id']);
+        $sucursalIds = $this->normalizeSucursalIds($data['sucursal_ids']);
+        $this->authorizeSucursalesAccess($sucursalIds);
 
         [$previewRows, $importErrors] = $this->parseXlsx(
             $request->file('archivo')->getRealPath()
@@ -88,7 +90,7 @@ class CargaInicialProductoController extends Controller
 
             session([
                 "carga_inicial_productos.{$previewToken}" => [
-                    'sucursal_id' => (int) $data['sucursal_id'],
+                    'sucursal_ids' => $sucursalIds,
                     'rows' => $previewRows->values()->all(),
                 ],
             ]);
@@ -98,7 +100,7 @@ class CargaInicialProductoController extends Controller
             'sucursales' => $this->sucursales(),
             'previewRows' => $previewRows,
             'importErrors' => $importErrors,
-            'selectedSucursal' => (int) $data['sucursal_id'],
+            'selectedSucursales' => $sucursalIds,
             'previewToken' => $previewToken,
         ]);
     }
@@ -106,15 +108,17 @@ class CargaInicialProductoController extends Controller
     public function confirm(Request $request)
     {
         $data = $request->validate([
-            'sucursal_id' => ['required', 'exists:sucursales,id'],
+            'sucursal_ids' => ['required', 'array', 'min:1'],
+            'sucursal_ids.*' => ['required', 'integer', 'exists:sucursales,id'],
             'preview_token' => ['required', 'string'],
         ]);
 
-        $this->authorizeSucursalAccess((int) $data['sucursal_id']);
+        $sucursalIds = $this->normalizeSucursalIds($data['sucursal_ids']);
+        $this->authorizeSucursalesAccess($sucursalIds);
 
         $preview = session()->pull("carga_inicial_productos.{$data['preview_token']}");
 
-        if (!$preview || (int) $preview['sucursal_id'] !== (int) $data['sucursal_id']) {
+        if (!$preview || $this->normalizeSucursalIds($preview['sucursal_ids'] ?? []) !== $sucursalIds) {
             return redirect()
                 ->route('inventarios.carga-inicial')
                 ->with('error', 'La vista previa expiro. Vuelve a validar el archivo antes de confirmar.');
@@ -132,7 +136,7 @@ class CargaInicialProductoController extends Controller
         $actualizados = 0;
         $movimientos = 0;
 
-        DB::transaction(function () use ($rows, $data, &$creados, &$actualizados, &$movimientos) {
+        DB::transaction(function () use ($rows, $sucursalIds, &$creados, &$actualizados, &$movimientos) {
             foreach ($rows as $row) {
                 $categoria = null;
 
@@ -143,7 +147,7 @@ class CargaInicialProductoController extends Controller
                     );
                 }
 
-                $producto = Producto::where('codigo_barra', $row['codigo_barra'])->first();
+                $producto = $this->findExistingProduct($row['codigo_barra'], $row['nombre'], $row['laboratorio']);
 
                 if ($producto) {
                     $producto->update([
@@ -174,40 +178,42 @@ class CargaInicialProductoController extends Controller
                     $creados++;
                 }
 
-                $inventario = Inventario::firstOrCreate(
-                    [
-                        'producto_id' => $producto->id,
-                        'sucursal_id' => $data['sucursal_id'],
-                    ],
-                    ['existencia' => 0]
-                );
+                foreach ($sucursalIds as $sucursalId) {
+                    $inventario = Inventario::firstOrCreate(
+                        [
+                            'producto_id' => $producto->id,
+                            'sucursal_id' => $sucursalId,
+                        ],
+                        ['existencia' => 0]
+                    );
 
-                $existenciaAnterior = (int) $inventario->existencia;
-                $existenciaNueva = (int) $row['existencia_inicial'];
+                    $existenciaAnterior = (int) $inventario->existencia;
+                    $existenciaNueva = (int) $row['existencia_inicial'];
 
-                if ($existenciaNueva !== $existenciaAnterior) {
-                    $inventario->update(['existencia' => $existenciaNueva]);
+                    if ($existenciaNueva !== $existenciaAnterior) {
+                        $inventario->update(['existencia' => $existenciaNueva]);
 
-                    MovimientoInventario::create([
-                        'producto_id' => $producto->id,
-                        'sucursal_id' => $data['sucursal_id'],
-                        'user_id' => auth()->id(),
-                        'tipo_movimiento' => $existenciaNueva >= $existenciaAnterior ? 'AJUSTE_ENTRADA' : 'AJUSTE_SALIDA',
-                        'cantidad' => abs($existenciaNueva - $existenciaAnterior),
-                        'existencia_anterior' => $existenciaAnterior,
-                        'existencia_nueva' => $existenciaNueva,
-                        'referencia' => 'Carga inicial masiva',
-                        'observacion' => 'Carga inicial masiva de productos',
-                    ]);
+                        MovimientoInventario::create([
+                            'producto_id' => $producto->id,
+                            'sucursal_id' => $sucursalId,
+                            'user_id' => auth()->id(),
+                            'tipo_movimiento' => $existenciaNueva >= $existenciaAnterior ? 'AJUSTE_ENTRADA' : 'AJUSTE_SALIDA',
+                            'cantidad' => abs($existenciaNueva - $existenciaAnterior),
+                            'existencia_anterior' => $existenciaAnterior,
+                            'existencia_nueva' => $existenciaNueva,
+                            'referencia' => 'Carga inicial masiva',
+                            'observacion' => 'Carga inicial masiva de productos multi-sucursal',
+                        ]);
 
-                    $movimientos++;
+                        $movimientos++;
+                    }
                 }
             }
         });
 
         return redirect()
             ->route('inventarios.index')
-            ->with('success', "Carga inicial aplicada. Productos creados: {$creados}. Actualizados: {$actualizados}. Movimientos: {$movimientos}.");
+            ->with('success', "Carga inicial aplicada en " . count($sucursalIds) . " sucursal(es). Productos creados: {$creados}. Actualizados: {$actualizados}. Movimientos: {$movimientos}.");
     }
 
     private function parseXlsx(string $path): array
@@ -220,6 +226,7 @@ class CargaInicialProductoController extends Controller
         $errors = collect();
         $line = 0;
         $codesInFile = [];
+        $identitiesInFile = [];
 
         foreach ($reader->getSheetIterator() as $sheet) {
             foreach ($sheet->getRowIterator() as $row) {
@@ -244,7 +251,7 @@ class CargaInicialProductoController extends Controller
                     continue;
                 }
 
-                $this->addPreviewRow($row, $line, $previewRows, $errors, $codesInFile);
+                $this->addPreviewRow($row, $line, $previewRows, $errors, $codesInFile, $identitiesInFile);
             }
 
             break;
@@ -263,7 +270,7 @@ class CargaInicialProductoController extends Controller
         return [$previewRows, $errors];
     }
 
-    private function addPreviewRow(array $row, int $line, $previewRows, $errors, array &$codesInFile): void
+    private function addPreviewRow(array $row, int $line, $previewRows, $errors, array &$codesInFile, array &$identitiesInFile): void
     {
         $nombre = trim((string) ($row['nombre'] ?? ''));
         $codigo = trim((string) ($row['codigo_barra'] ?? ''));
@@ -300,13 +307,22 @@ class CargaInicialProductoController extends Controller
             }
 
             $codesInFile[$codigo] = true;
+        } else {
+            $identity = $this->productIdentityKey($nombre, (string) ($row['laboratorio'] ?? ''));
+
+            if (isset($identitiesInFile[$identity])) {
+                $errors->push("Linea {$line}: producto duplicado dentro del archivo sin codigo_barra.");
+                return;
+            }
+
+            $identitiesInFile[$identity] = true;
         }
 
-        $productoExistente = $codigo !== '' ? Producto::where('codigo_barra', $codigo)->first() : null;
+        $productoExistente = $this->findExistingProduct($codigo, $nombre, (string) ($row['laboratorio'] ?? ''));
 
         $previewRows->push([
-            'codigo_barra' => $codigo,
-            'codigo_generado' => $codigo === '',
+            'codigo_barra' => $productoExistente?->codigo_barra ?? $codigo,
+            'codigo_generado' => $codigo === '' && ! $productoExistente,
             'accion' => $productoExistente ? 'Actualizar' : 'Crear',
             'nombre' => $nombre,
             'categoria' => trim((string) ($row['categoria'] ?? '')),
@@ -346,6 +362,29 @@ class CargaInicialProductoController extends Controller
 
             return $row;
         });
+    }
+
+    private function findExistingProduct(?string $codigo, string $nombre, ?string $laboratorio): ?Producto
+    {
+        $codigo = trim((string) $codigo);
+
+        if ($codigo !== '') {
+            $producto = Producto::where('codigo_barra', $codigo)->first();
+
+            if ($producto) {
+                return $producto;
+            }
+        }
+
+        return Producto::whereRaw('LOWER(nombre) = ?', [Str::lower(trim($nombre))])
+            ->whereRaw("LOWER(COALESCE(laboratorio, '')) = ?", [Str::lower(trim((string) $laboratorio))])
+            ->orderBy('id')
+            ->first();
+    }
+
+    private function productIdentityKey(string $nombre, ?string $laboratorio): string
+    {
+        return Str::lower(trim($nombre)) . '|' . Str::lower(trim((string) $laboratorio));
     }
 
     private function nextInternalCodeNumber(): int
@@ -415,8 +454,20 @@ class CargaInicialProductoController extends Controller
             ->get();
     }
 
-    private function authorizeSucursalAccess(int $sucursalId): void
+    private function normalizeSucursalIds(array $sucursalIds): array
     {
-        abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
+        return collect($sucursalIds)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    private function authorizeSucursalesAccess(array $sucursalIds): void
+    {
+        foreach ($sucursalIds as $sucursalId) {
+            abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
+        }
     }
 }
