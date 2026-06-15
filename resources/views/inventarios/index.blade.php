@@ -39,7 +39,7 @@
                 @endcan
             </div>
 
-            <form method="GET" action="{{ route('inventarios.index') }}" class="mb-4 bg-white shadow rounded p-4">
+            <form method="GET" action="{{ route('inventarios.index') }}" class="mb-4 bg-white shadow rounded p-4" data-auto-filter-form>
                 <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_150px_auto_auto] md:items-end">
                     <div>
                         <label for="q" class="block text-sm font-semibold text-gray-700 mb-1">
@@ -50,7 +50,9 @@
                                name="q"
                                value="{{ $search }}"
                                placeholder="Producto, codigo, laboratorio o sucursal"
-                               class="w-full rounded border-gray-300">
+                               class="w-full rounded border-gray-300"
+                               autocomplete="off"
+                               data-auto-filter-input>
                     </div>
 
                     @if($sucursales->isNotEmpty())
@@ -60,7 +62,8 @@
                             </label>
                             <select id="sucursal_id"
                                     name="sucursal_id"
-                                    class="w-full rounded border-gray-300">
+                                    class="w-full rounded border-gray-300"
+                                    data-auto-filter-select>
                                 <option value="">Todas</option>
                                 @foreach($sucursales as $sucursal)
                                     <option value="{{ $sucursal->id }}" @selected((string) $selectedSucursalId === (string) $sucursal->id)>
@@ -77,7 +80,8 @@
                         </label>
                         <select id="estado_stock"
                                 name="estado_stock"
-                                class="w-full rounded border-gray-300">
+                                class="w-full rounded border-gray-300"
+                                data-auto-filter-select>
                             <option value="">Todos</option>
                             <option value="bajo" @selected($estadoStock === 'bajo')>Stock bajo</option>
                             <option value="normal" @selected($estadoStock === 'normal')>Normal</option>
@@ -90,7 +94,8 @@
                         </label>
                         <select id="per_page"
                                 name="per_page"
-                                class="w-full rounded border-gray-300">
+                                class="w-full rounded border-gray-300"
+                                data-auto-filter-select>
                             @foreach([25, 50, 100, 200] as $option)
                                 <option value="{{ $option }}" @selected($perPage === $option)>
                                     {{ $option }} registros
@@ -187,4 +192,28 @@
 
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('[data-auto-filter-form]').forEach(form => {
+            const input = form.querySelector('[data-auto-filter-input]');
+            const selects = form.querySelectorAll('[data-auto-filter-select]');
+            let timeout;
+
+            function submitWithDelay() {
+                clearTimeout(timeout);
+
+                timeout = setTimeout(() => {
+                    form.requestSubmit();
+                }, 450);
+            }
+
+            input?.addEventListener('input', submitWithDelay);
+
+            selects.forEach(select => {
+                select.addEventListener('change', () => {
+                    form.requestSubmit();
+                });
+            });
+        });
+    </script>
 </x-app-layout>

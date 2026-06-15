@@ -36,7 +36,7 @@
 
             </div>
 
-            <form method="GET" action="{{ route('productos.index') }}" class="mb-4 bg-white shadow rounded p-4">
+            <form method="GET" action="{{ route('productos.index') }}" class="mb-4 bg-white shadow rounded p-4" data-auto-filter-form>
                 <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_150px_auto_auto] md:items-end">
                     <div>
                         <label for="q" class="block text-sm font-semibold text-gray-700 mb-1">
@@ -47,7 +47,9 @@
                                name="q"
                                value="{{ $search }}"
                                placeholder="Nombre, codigo o laboratorio"
-                               class="w-full rounded border-gray-300">
+                               class="w-full rounded border-gray-300"
+                               autocomplete="off"
+                               data-auto-filter-input>
                     </div>
 
                     <div>
@@ -56,7 +58,8 @@
                         </label>
                         <select id="categoria_id"
                                 name="categoria_id"
-                                class="w-full rounded border-gray-300">
+                                class="w-full rounded border-gray-300"
+                                data-auto-filter-select>
                             <option value="">Todas</option>
                             @foreach($categorias as $categoria)
                                 <option value="{{ $categoria->id }}" @selected((string) $categoriaId === (string) $categoria->id)>
@@ -72,7 +75,8 @@
                         </label>
                         <select id="per_page"
                                 name="per_page"
-                                class="w-full rounded border-gray-300">
+                                class="w-full rounded border-gray-300"
+                                data-auto-filter-select>
                             @foreach([25, 50, 100, 200] as $option)
                                 <option value="{{ $option }}" @selected($perPage === $option)>
                                     {{ $option }} registros
@@ -196,4 +200,28 @@
 
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('[data-auto-filter-form]').forEach(form => {
+            const input = form.querySelector('[data-auto-filter-input]');
+            const selects = form.querySelectorAll('[data-auto-filter-select]');
+            let timeout;
+
+            function submitWithDelay() {
+                clearTimeout(timeout);
+
+                timeout = setTimeout(() => {
+                    form.requestSubmit();
+                }, 450);
+            }
+
+            input?.addEventListener('input', submitWithDelay);
+
+            selects.forEach(select => {
+                select.addEventListener('change', () => {
+                    form.requestSubmit();
+                });
+            });
+        });
+    </script>
 </x-app-layout>
