@@ -227,6 +227,7 @@ class CargaInicialProductoController extends Controller
         $line = 0;
         $codesInFile = [];
         $identitiesInFile = [];
+        $productLookup = $this->productLookup();
 
         foreach ($reader->getSheetIterator() as $sheet) {
             foreach ($sheet->getRowIterator() as $row) {
@@ -251,7 +252,7 @@ class CargaInicialProductoController extends Controller
                     continue;
                 }
 
-                $this->addPreviewRow($row, $line, $previewRows, $errors, $codesInFile, $identitiesInFile);
+                $this->addPreviewRow($row, $line, $previewRows, $errors, $codesInFile, $identitiesInFile, $productLookup);
             }
 
             break;
@@ -270,7 +271,7 @@ class CargaInicialProductoController extends Controller
         return [$previewRows, $errors];
     }
 
-    private function addPreviewRow(array $row, int $line, $previewRows, $errors, array &$codesInFile, array &$identitiesInFile): void
+    private function addPreviewRow(array $row, int $line, $previewRows, $errors, array &$codesInFile, array &$identitiesInFile, array $productLookup): void
     {
         $nombre = trim((string) ($row['nombre'] ?? ''));
         $codigo = trim((string) ($row['codigo_barra'] ?? ''));
@@ -318,7 +319,7 @@ class CargaInicialProductoController extends Controller
             $identitiesInFile[$identity] = true;
         }
 
-        $productoExistente = $this->findExistingProduct($codigo, $nombre, (string) ($row['laboratorio'] ?? ''));
+        $productoExistente = $this->findExistingProductFromLookup($productLookup, $codigo, $nombre, (string) ($row['laboratorio'] ?? ''));
 
         $previewRows->push([
             'codigo_barra' => $productoExistente?->codigo_barra ?? $codigo,
@@ -362,6 +363,36 @@ class CargaInicialProductoController extends Controller
 
             return $row;
         });
+    }
+
+    private function productLookup(): array
+    {
+        $productos = Producto::orderByDesc('estado')
+            ->orderBy('id')
+            ->get();
+
+        return [
+            'by_code' => $productos
+                ->filter(fn ($producto) => trim((string) $producto->codigo_barra) !== '')
+                ->unique('codigo_barra')
+                ->keyBy('codigo_barra'),
+            'by_identity' => $productos
+                ->unique(fn ($producto) => $this->productIdentityKey($producto->nombre, $producto->laboratorio))
+                ->keyBy(fn ($producto) => $this->productIdentityKey($producto->nombre, $producto->laboratorio)),
+        ];
+    }
+
+    private function findExistingProductFromLookup(array $lookup, ?string $codigo, string $nombre, ?string $laboratorio): ?Producto
+    {
+        $codigo = trim((string) $codigo);
+
+        if ($codigo !== '' && isset($lookup['by_code'][$codigo])) {
+            return $lookup['by_code'][$codigo];
+        }
+
+        $identity = $this->productIdentityKey($nombre, $laboratorio);
+
+        return $lookup['by_identity'][$identity] ?? null;
     }
 
     private function findExistingProduct(?string $codigo, string $nombre, ?string $laboratorio): ?Producto

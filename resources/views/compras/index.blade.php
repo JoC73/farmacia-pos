@@ -92,13 +92,13 @@
 
                                 <td class="p-2 border">
 
-                                    {{ $compra->sucursal->nombre }}
+                                    {{ $compra->sucursal?->nombre ?? '-' }}
 
                                 </td>
 
                                 <td class="p-2 border">
 
-                                    {{ $compra->usuario->name }}
+                                    {{ $compra->usuario?->name ?? '-' }}
 
                                 </td>
 
@@ -110,7 +110,7 @@
 
                                 <td class="p-2 border">
 
-                                    {{ $compra->created_at->format('d/m/Y H:i') }}
+                                    {{ $compra->created_at->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
 
                                 </td>
 

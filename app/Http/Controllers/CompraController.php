@@ -32,7 +32,13 @@ class CompraController extends Controller
 
     public function create()
     {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
         $productos = Producto::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereHas(
+                'inventarios',
+                fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
+            ))
             ->ordenadoPorNombre()
             ->get();
 
@@ -48,6 +54,15 @@ class CompraController extends Controller
 
     public function store(Request $request)
     {
+        $productos = collect($request->input('productos', []))
+            ->filter(fn ($item) => ! empty($item['producto_id']))
+            ->values()
+            ->all();
+
+        $request->merge([
+            'productos' => $productos,
+        ]);
+
         $request->validate([
             'proveedor_id' => 'required|exists:proveedores,id',
 
