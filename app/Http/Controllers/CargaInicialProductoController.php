@@ -378,6 +378,7 @@ class CargaInicialProductoController extends Controller
 
         return Producto::whereRaw('LOWER(nombre) = ?', [Str::lower(trim($nombre))])
             ->whereRaw("LOWER(COALESCE(laboratorio, '')) = ?", [Str::lower(trim((string) $laboratorio))])
+            ->orderByDesc('estado')
             ->orderBy('id')
             ->first();
     }

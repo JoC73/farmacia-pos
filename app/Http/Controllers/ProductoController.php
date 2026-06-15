@@ -13,6 +13,7 @@ class ProductoController extends Controller
         $sucursalId = auth()->user()->visibleSucursalId();
 
         $productos = Producto::with('categoria')
+            ->where('estado', true)
             ->when($sucursalId, fn ($query) => $query->whereHas(
                 'inventarios',
                 fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)

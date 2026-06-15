@@ -20,6 +20,7 @@ class InventarioController extends Controller
         ->join('productos', 'inventarios.producto_id', '=', 'productos.id')
         ->leftJoin('sucursales', 'inventarios.sucursal_id', '=', 'sucursales.id')
         ->select('inventarios.*')
+        ->where('productos.estado', true)
         ->when($sucursalId, fn ($query) => $query->where('inventarios.sucursal_id', $sucursalId))
         ->orderByRaw('LOWER(productos.nombre)')
         ->orderByRaw("LOWER(COALESCE(sucursales.nombre, ''))")
