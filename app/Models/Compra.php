@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Compra extends Model
 {
+    protected $casts = [
+        'fecha_compra' => 'date',
+    ];
+
     protected $fillable = [
         'proveedor_id',
         'sucursal_id',

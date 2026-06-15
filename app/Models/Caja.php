@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Caja extends Model
 {
+    protected $casts = [
+        'fecha_apertura' => 'datetime',
+        'fecha_cierre' => 'datetime',
+    ];
+
     protected $fillable = [
 
         'sucursal_id',

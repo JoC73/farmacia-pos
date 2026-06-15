@@ -48,12 +48,12 @@
 
                     <div>
                         <strong>Fecha apertura:</strong><br>
-                        {{ $caja->fecha_apertura }}
+                        {{ optional($caja->fecha_apertura)->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '-' }}
                     </div>
 
                     <div>
                         <strong>Fecha cierre:</strong><br>
-                        {{ $caja->fecha_cierre ?? '-' }}
+                        {{ optional($caja->fecha_cierre)->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '-' }}
                     </div>
                 </div>
 
@@ -105,7 +105,7 @@
                                     <td class="p-2 border">{{ $movimiento->descripcion ?? '-' }}</td>
                                     <td class="p-2 border">{{ $movimiento->usuario->name ?? '-' }}</td>
                                     <td class="p-2 border">
-                                        {{ optional($movimiento->fecha_movimiento)->format('d/m/Y H:i') ?? $movimiento->created_at->format('d/m/Y H:i') }}
+                                        {{ ($movimiento->fecha_movimiento ?? $movimiento->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
                                     </td>
                                 </tr>
                             @empty

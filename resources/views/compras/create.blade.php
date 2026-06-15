@@ -95,113 +95,58 @@
                     </div>
 
                     <!-- PRODUCTOS -->
-                    <div class="bg-gray-50 p-4 rounded border">
-
-                        <h3 class="font-bold mb-4">
-                            Productos
-                        </h3>
-
-                        <div id="productos-container">
-
-                            <div class="producto-item grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-
-                                <!-- PRODUCTO -->
-                                <div>
-
-                                    <label class="block text-sm font-medium mb-1">
-                                        Producto
-                                    </label>
-
-                                    <select name="productos[0][producto_id]"
-                                            class="w-full border-gray-300 rounded producto-select">
-
-                                        <option value="">
-                                            Seleccione producto
-                                        </option>
-
-                                        @foreach($productos as $producto)
-
-                                            <option value="{{ $producto->id }}">
-
-                                                {{ $producto->nombre }}
-
-                                            </option>
-
-                                        @endforeach
-
-                                    </select>
-
-                                </div>
-
-                                <!-- CANTIDAD -->
-                                <div>
-
-                                    <label class="block text-sm font-medium mb-1">
-                                        Cantidad
-                                    </label>
-
-                                    <input type="number"
-                                           min="1"
-                                           value="1"
-                                           name="productos[0][cantidad]"
-                                           class="w-full border-gray-300 rounded cantidad-input">
-
-                                </div>
-
-                                <!-- COSTO -->
-                                <div>
-
-                                    <label class="block text-sm font-medium mb-1">
-                                        Costo
-                                    </label>
-
-                                    <input type="number"
-                                           step="0.01"
-                                           min="0"
-                                           value="0"
-                                           name="productos[0][costo]"
-                                           class="w-full border-gray-300 rounded costo-input">
-
-                                </div>
-
-                                <!-- SUBTOTAL -->
-                                <div>
-
-                                    <label class="block text-sm font-medium mb-1">
-                                        Subtotal
-                                    </label>
-
-                                    <input type="text"
-                                           readonly
-                                           class="w-full bg-gray-100 border-gray-300 rounded subtotal-input">
-
-                                </div>
-
+                    <div class="bg-gray-50 rounded border">
+                        <div class="flex flex-col gap-3 border-b bg-white p-4 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h3 class="font-bold text-gray-800">
+                                    Productos
+                                </h3>
+                                <p class="text-sm text-gray-500">
+                                    Registra compras largas usando filas compactas.
+                                </p>
                             </div>
 
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button"
+                                        id="agregar-producto"
+                                        class="rounded bg-blue-600 px-4 py-2 text-white">
+                                    Agregar fila
+                                </button>
+
+                                <button type="button"
+                                        id="agregar-cinco"
+                                        class="rounded bg-slate-700 px-4 py-2 text-white">
+                                    +5 filas
+                                </button>
+                            </div>
                         </div>
 
-                        <button type="button"
-                                id="agregar-producto"
-                                class="mt-2 px-4 py-2 rounded"
-                                style="background-color: blue; color: white;">
+                        <div class="max-h-[540px] overflow-auto">
+                            <table class="w-full min-w-[900px] text-sm">
+                                <thead class="sticky top-0 z-10 bg-gray-100">
+                                    <tr>
+                                        <th class="border p-2 text-left w-12">#</th>
+                                        <th class="border p-2 text-left">Producto</th>
+                                        <th class="border p-2 text-right w-28">Cantidad</th>
+                                        <th class="border p-2 text-right w-32">Costo</th>
+                                        <th class="border p-2 text-right w-36">Subtotal</th>
+                                        <th class="border p-2 text-center w-24">Acción</th>
+                                    </tr>
+                                </thead>
 
-                            Agregar Producto
+                                <tbody id="productos-body"></tbody>
+                            </table>
+                        </div>
 
-                        </button>
+                        <div class="sticky bottom-0 flex flex-col gap-2 border-t bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="text-sm text-gray-500">
+                                Líneas: <span id="lineas-total">0</span>
+                            </div>
 
-                    </div>
-
-                    <!-- TOTAL -->
-                    <div class="mt-6">
-
-                        <h3 class="text-xl font-bold">
-
-                            Total:
-                            Q <span id="total-general">0.00</span>
-
-                        </h3>
-
+                            <div class="text-2xl font-bold text-gray-900">
+                                Total: Q <span id="total-general">0.00</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- BOTONES -->
@@ -234,83 +179,117 @@
     </div>
 
 <script>
+    const productos = @json($productos->map(fn ($producto) => [
+        'id' => $producto->id,
+        'nombre' => $producto->nombre,
+        'costo' => (float) $producto->costo,
+    ])->values());
 
-    let index = 1;
+    let index = 0;
+
+    function productoOptions()
+    {
+        return [
+            '<option value="">Seleccione producto</option>',
+            ...productos.map(producto => `<option value="${producto.id}" data-costo="${producto.costo}">${producto.nombre}</option>`)
+        ].join('');
+    }
+
+    function agregarFila()
+    {
+        const tbody = document.getElementById('productos-body');
+        const row = document.createElement('tr');
+
+        row.className = 'producto-item bg-white';
+        row.innerHTML = `
+            <td class="border p-2 text-center row-number"></td>
+            <td class="border p-2">
+                <select name="productos[${index}][producto_id]" class="producto-select w-full rounded border-gray-300">
+                    ${productoOptions()}
+                </select>
+            </td>
+            <td class="border p-2">
+                <input type="number" min="1" value="1" name="productos[${index}][cantidad]" class="cantidad-input w-full rounded border-gray-300 text-right">
+            </td>
+            <td class="border p-2">
+                <input type="number" step="0.01" min="0.01" value="0.00" name="productos[${index}][costo]" class="costo-input w-full rounded border-gray-300 text-right">
+            </td>
+            <td class="border p-2 text-right font-semibold subtotal-text">Q 0.00</td>
+            <td class="border p-2 text-center">
+                <button type="button" class="remover-fila rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white">
+                    Quitar
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(row);
+        index++;
+        renumerarFilas();
+        calcularTotales();
+    }
+
+    function renumerarFilas()
+    {
+        document.querySelectorAll('.producto-item').forEach((row, position) => {
+            row.querySelector('.row-number').innerText = position + 1;
+        });
+
+        document.getElementById('lineas-total').innerText = document.querySelectorAll('.producto-item').length;
+    }
 
     function calcularTotales()
     {
         let totalGeneral = 0;
 
-        document.querySelectorAll('.producto-item').forEach(item => {
-
-            const cantidad =
-                parseFloat(item.querySelector('.cantidad-input').value || 0);
-
-            const costo =
-                parseFloat(item.querySelector('.costo-input').value || 0);
-
+        document.querySelectorAll('.producto-item').forEach(row => {
+            const cantidad = parseFloat(row.querySelector('.cantidad-input').value || 0);
+            const costo = parseFloat(row.querySelector('.costo-input').value || 0);
             const subtotal = cantidad * costo;
 
-            item.querySelector('.subtotal-input').value =
-                subtotal.toFixed(2);
-
+            row.querySelector('.subtotal-text').innerText = `Q ${subtotal.toFixed(2)}`;
             totalGeneral += subtotal;
-
         });
 
-        document.getElementById('total-general').innerText =
-            totalGeneral.toFixed(2);
+        document.getElementById('total-general').innerText = totalGeneral.toFixed(2);
     }
 
-    document.addEventListener('input', calcularTotales);
+    document.addEventListener('input', event => {
+        if (event.target.matches('.cantidad-input, .costo-input')) {
+            calcularTotales();
+        }
+    });
 
-    document.getElementById('agregar-producto')
-        .addEventListener('click', function () {
+    document.addEventListener('change', event => {
+        if (event.target.matches('.producto-select')) {
+            const option = event.target.selectedOptions[0];
+            const row = event.target.closest('.producto-item');
+            const costoInput = row.querySelector('.costo-input');
 
-            const container =
-                document.getElementById('productos-container');
+            if (option?.dataset?.costo && parseFloat(costoInput.value || 0) <= 0) {
+                costoInput.value = parseFloat(option.dataset.costo).toFixed(2);
+            }
 
-            const item =
-                document.querySelector('.producto-item');
+            calcularTotales();
+        }
+    });
 
-            const clone = item.cloneNode(true);
+    document.addEventListener('click', event => {
+        if (event.target.matches('.remover-fila')) {
+            event.target.closest('.producto-item').remove();
+            renumerarFilas();
+            calcularTotales();
+        }
+    });
 
-            clone.querySelectorAll('select, input').forEach(el => {
+    document.getElementById('agregar-producto').addEventListener('click', agregarFila);
 
-                if (el.name.includes('producto_id')) {
+    document.getElementById('agregar-cinco').addEventListener('click', () => {
+        for (let i = 0; i < 5; i++) {
+            agregarFila();
+        }
+    });
 
-                    el.name = `productos[${index}][producto_id]`;
-
-                    el.selectedIndex = 0;
-                }
-
-                if (el.name.includes('cantidad')) {
-
-                    el.name = `productos[${index}][cantidad]`;
-
-                    el.value = 1;
-                }
-
-                if (el.name.includes('costo')) {
-
-                    el.name = `productos[${index}][costo]`;
-
-                    el.value = 0;
-                }
-
-                if (el.classList.contains('subtotal-input')) {
-
-                    el.value = '';
-                }
-
-            });
-
-            container.appendChild(clone);
-
-            index++;
-
-        });
-
+    agregarFila();
 </script>
 
 </x-app-layout>

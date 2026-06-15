@@ -59,7 +59,7 @@
                         <div class="font-bold">Venta anulada</div>
                         <div class="text-sm">
                             Anulada por {{ $venta->anulador->name ?? '-' }}
-                            el {{ optional($venta->fecha_anulacion)->format('d/m/Y H:i') ?? '-' }}.
+                            el {{ optional($venta->fecha_anulacion)->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '-' }}.
                         </div>
                         <div class="text-sm mt-1">
                             Motivo: {{ $venta->motivo_anulacion ?? '-' }}
@@ -81,7 +81,7 @@
 
                     <p>
                         Fecha:
-                        {{ $venta->created_at->format('d/m/Y H:i') }}
+                        {{ $venta->created_at->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
                     </p>
 
                     @if($venta->estado === 'ANULADA')
