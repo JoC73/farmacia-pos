@@ -218,3 +218,56 @@ if (! function_exists('product_duplicate_key')) {
             ->toString();
     }
 }
+
+Artisan::command('system:reset-operational-data {--force : Ejecuta sin pedir confirmacion}', function () {
+    $tables = [
+        'movimiento_cajas',
+        'cajas',
+        'detalle_ventas',
+        'ventas',
+        'detalle_compras',
+        'compras',
+        'movimiento_inventarios',
+        'inventarios',
+        'productos',
+        'categorias',
+        'clientes',
+        'proveedores',
+    ];
+
+    $this->warn('Esta operacion borrara datos operativos y catalogos.');
+    $this->line('Se borrara: productos, inventarios, categorias, clientes, proveedores, ventas, compras, cajas y movimientos.');
+    $this->line('Se conserva: usuarios, roles, permisos, sucursales y modulos premium.');
+
+    if (! $this->option('force') && ! $this->confirm('¿Confirmas que deseas limpiar estos datos?')) {
+        $this->warn('Operacion cancelada.');
+        return 0;
+    }
+
+    $driver = DB::connection()->getDriverName();
+
+    if ($driver === 'pgsql') {
+        DB::statement('TRUNCATE TABLE ' . implode(', ', $tables) . ' RESTART IDENTITY CASCADE');
+    } elseif ($driver === 'mysql') {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+        foreach ($tables as $table) {
+            DB::table($table)->truncate();
+        }
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+    } else {
+        DB::statement('PRAGMA foreign_keys = OFF');
+
+        foreach ($tables as $table) {
+            DB::table($table)->delete();
+        }
+
+        DB::statement('PRAGMA foreign_keys = ON');
+    }
+
+    $this->info('Datos operativos limpiados correctamente.');
+    $this->line('Usuarios, roles, permisos, sucursales y modulos premium fueron conservados.');
+
+    return 0;
+})->purpose('Limpia datos operativos y catalogos preservando usuarios, roles, sucursales y configuracion premium.');
