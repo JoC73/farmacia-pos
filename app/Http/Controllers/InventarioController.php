@@ -48,13 +48,23 @@ class InventarioController extends Controller
             ? Sucursal::where('estado', true)->orderBy('nombre')->get()
             : collect();
 
+        $canAdjustInventory = auth()->user()->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']);
+
+        if ($request->ajax()) {
+            return view('inventarios.partials.results', compact(
+                'inventarios',
+                'canAdjustInventory'
+            ));
+        }
+
         return view('inventarios.index', compact(
             'inventarios',
             'perPage',
             'search',
             'estadoStock',
             'selectedSucursalId',
-            'sucursales'
+            'sucursales',
+            'canAdjustInventory'
         ));
     }
 

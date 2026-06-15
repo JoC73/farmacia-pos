@@ -36,12 +36,22 @@ class ProductoController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        $canManageGlobalProducts = auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']);
+
+        if ($request->ajax()) {
+            return view('productos.partials.results', compact(
+                'productos',
+                'canManageGlobalProducts'
+            ));
+        }
+
         return view('productos.index', compact(
             'productos',
             'categorias',
             'perPage',
             'search',
-            'categoriaId'
+            'categoriaId',
+            'canManageGlobalProducts'
         ));
     }
 

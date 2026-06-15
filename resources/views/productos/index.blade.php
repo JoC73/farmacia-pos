@@ -1,8 +1,4 @@
 <x-app-layout>
-    @php
-        $canManageGlobalProducts = Auth::user()->hasAnyRole(['Administrador Global', 'Super Usuario']);
-    @endphp
-
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Productos
@@ -36,7 +32,11 @@
 
             </div>
 
-            <form method="GET" action="{{ route('productos.index') }}" class="mb-4 bg-white shadow rounded p-4" data-auto-filter-form>
+            <form method="GET"
+                  action="{{ route('productos.index') }}"
+                  class="mb-4 bg-white shadow rounded p-4"
+                  data-async-filter-form
+                  data-results-target="#productos-results">
                 <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_150px_auto_auto] md:items-end">
                     <div>
                         <label for="q" class="block text-sm font-semibold text-gray-700 mb-1">
@@ -90,137 +90,117 @@
                         Filtrar
                     </button>
 
-                    <a href="{{ route('productos.index') }}"
-                       class="px-4 py-2 bg-gray-600 text-white rounded text-center">
+                    <button type="button"
+                            class="px-4 py-2 bg-gray-600 text-white rounded text-center"
+                            data-clear-filter>
                         Limpiar
-                    </a>
+                    </button>
                 </div>
             </form>
 
-            <div class="bg-white shadow rounded p-4 overflow-x-auto">
-                <div class="mb-3 text-sm text-gray-600">
-                    Mostrando {{ $productos->firstItem() ?? 0 }}-{{ $productos->lastItem() ?? 0 }}
-                    de {{ $productos->total() }} productos
-                </div>
-
-                <table class="w-full border text-sm">
-                    <thead>
-                        <tr class="bg-gray-100">
-                            <th class="p-2 border">Código</th>
-                            <th class="p-2 border">Producto</th>
-                            <th class="p-2 border">Categoría</th>
-                            <th class="p-2 border">Costo</th>
-                            <th class="p-2 border">Precio</th>
-                            <th class="p-2 border">Stock mín.</th>
-                            <th class="p-2 border">Vence</th>
-                            <th class="p-2 border">Estado</th>
-                            <th class="p-2 border">Acciones</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        @forelse ($productos as $producto)
-                            <tr>
-                                <td class="p-2 border">
-                                    {{ $producto->codigo_barra }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $producto->nombre }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $producto->categoria->nombre ?? 'Sin categoría' }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    Q {{ number_format($producto->costo, 2) }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    Q {{ number_format($producto->precio_venta, 2) }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $producto->stock_minimo }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $producto->fecha_vencimiento ?? 'N/A' }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $producto->estado ? 'Activo' : 'Inactivo' }}
-                                </td>
-
-                                <td class="p-2 border whitespace-nowrap">
-
-                                    @if($canManageGlobalProducts)
-                                        <a href="{{ route('productos.edit', $producto) }}"
-                                           class="text-blue-600">
-                                            Editar
-                                        </a>
-
-                                        <form action="{{ route('productos.destroy', $producto) }}"
-                                              method="POST"
-                                              class="inline">
-                                            @csrf
-                                            @method('DELETE')
-
-                                            <button type="submit"
-                                                    onclick="return confirm('¿Deseas desactivar este producto?')"
-                                                    class="text-red-600 ml-3">
-                                                Desactivar
-                                            </button>
-                                        </form>
-                                    @endif
-
-                                    @unless($canManageGlobalProducts)
-                                        <span class="text-gray-400">
-                                            Gestion global protegida
-                                        </span>
-                                    @endunless
-
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="p-4 text-center text-gray-500">
-                                    No hay productos registrados.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-
-                <div class="mt-4">
-                    {{ $productos->links() }}
-                </div>
+            <div id="productos-results">
+                @include('productos.partials.results', [
+                    'productos' => $productos,
+                    'canManageGlobalProducts' => $canManageGlobalProducts,
+                ])
             </div>
 
         </div>
     </div>
 
     <script>
-        document.querySelectorAll('[data-auto-filter-form]').forEach(form => {
+        document.querySelectorAll('[data-async-filter-form]').forEach(form => {
             const input = form.querySelector('[data-auto-filter-input]');
             const selects = form.querySelectorAll('[data-auto-filter-select]');
+            const clearButton = form.querySelector('[data-clear-filter]');
+            const target = document.querySelector(form.dataset.resultsTarget);
             let timeout;
+            let controller;
+
+            function buildUrl(baseUrl = form.action) {
+                const params = new URLSearchParams(new FormData(form));
+
+                for (const [key, value] of [...params.entries()]) {
+                    if (value === '') {
+                        params.delete(key);
+                    }
+                }
+
+                return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+            }
+
+            async function loadResults(url = buildUrl()) {
+                if (!target) {
+                    return;
+                }
+
+                controller?.abort();
+                controller = new AbortController();
+                target.style.opacity = '0.55';
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: controller.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('No se pudo cargar la busqueda.');
+                    }
+
+                    target.innerHTML = await response.text();
+                    window.history.replaceState({}, '', url);
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        form.submit();
+                    }
+                } finally {
+                    target.style.opacity = '1';
+                }
+            }
 
             function submitWithDelay() {
                 clearTimeout(timeout);
 
                 timeout = setTimeout(() => {
-                    form.requestSubmit();
-                }, 450);
+                    loadResults();
+                }, 500);
             }
 
             input?.addEventListener('input', submitWithDelay);
 
             selects.forEach(select => {
                 select.addEventListener('change', () => {
-                    form.requestSubmit();
+                    loadResults();
                 });
+            });
+
+            clearButton?.addEventListener('click', () => {
+                form.querySelectorAll('input, select').forEach(field => {
+                    if (field.name !== 'per_page') {
+                        field.value = '';
+                    }
+                });
+
+                loadResults(form.action);
+            });
+
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                loadResults();
+            });
+
+            target?.addEventListener('click', event => {
+                const link = event.target.closest('[data-async-pagination] a');
+
+                if (!link) {
+                    return;
+                }
+
+                event.preventDefault();
+                loadResults(link.href);
             });
         });
     </script>

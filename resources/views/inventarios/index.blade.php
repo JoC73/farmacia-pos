@@ -1,8 +1,4 @@
 <x-app-layout>
-    @php
-        $canAdjustInventory = Auth::user()->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']);
-    @endphp
-
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             Inventario por Sucursal
@@ -39,7 +35,11 @@
                 @endcan
             </div>
 
-            <form method="GET" action="{{ route('inventarios.index') }}" class="mb-4 bg-white shadow rounded p-4" data-auto-filter-form>
+            <form method="GET"
+                  action="{{ route('inventarios.index') }}"
+                  class="mb-4 bg-white shadow rounded p-4"
+                  data-async-filter-form
+                  data-results-target="#inventarios-results">
                 <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_150px_auto_auto] md:items-end">
                     <div>
                         <label for="q" class="block text-sm font-semibold text-gray-700 mb-1">
@@ -109,110 +109,117 @@
                         Filtrar
                     </button>
 
-                    <a href="{{ route('inventarios.index') }}"
-                       class="px-4 py-2 bg-gray-600 text-white rounded text-center">
+                    <button type="button"
+                            class="px-4 py-2 bg-gray-600 text-white rounded text-center"
+                            data-clear-filter>
                         Limpiar
-                    </a>
+                    </button>
                 </div>
             </form>
 
-            <div class="bg-white shadow rounded p-4 overflow-x-auto">
-                <div class="mb-3 text-sm text-gray-600">
-                    Mostrando {{ $inventarios->firstItem() ?? 0 }}-{{ $inventarios->lastItem() ?? 0 }}
-                    de {{ $inventarios->total() }} registros de inventario
-                </div>
-
-                <table class="w-full border text-sm">
-                    <thead>
-                        <tr class="bg-gray-100">
-                            <th class="p-2 border">Producto</th>
-                            <th class="p-2 border">Sucursal</th>
-                            <th class="p-2 border">Existencia</th>
-                            <th class="p-2 border">Stock mínimo</th>
-                            <th class="p-2 border">Estado</th>
-                            @if($canAdjustInventory)
-                                <th class="p-2 border">Acciones</th>
-                            @endif
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        @forelse ($inventarios as $inventario)
-                            <tr>
-                                <td class="p-2 border">
-                                    {{ $inventario->producto->nombre ?? 'Producto eliminado' }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $inventario->sucursal->nombre ?? 'Sucursal eliminada' }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $inventario->existencia }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    {{ $inventario->producto->stock_minimo ?? 0 }}
-                                </td>
-
-                                <td class="p-2 border">
-                                    @if($inventario->producto && $inventario->existencia <= $inventario->producto->stock_minimo)
-                                        <span class="text-red-600 font-bold">
-                                            STOCK BAJO
-                                        </span>
-                                    @else
-                                        <span class="text-green-600 font-bold">
-                                            NORMAL
-                                        </span>
-                                    @endif
-                                </td>
-                                @if($canAdjustInventory)
-                                    <td class="p-2 border text-center">
-                                        <a href="{{ route('inventarios.ajustar', $inventario) }}"
-                                           class="inline-flex items-center px-3 py-1 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700">
-                                            Ajustar
-                                        </a>
-                                    </td>
-                                @endif
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="{{ $canAdjustInventory ? 6 : 5 }}" class="p-4 text-center text-gray-500">
-                                    No hay inventario registrado.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-
-                <div class="mt-4">
-                    {{ $inventarios->links() }}
-                </div>
+            <div id="inventarios-results">
+                @include('inventarios.partials.results', [
+                    'inventarios' => $inventarios,
+                    'canAdjustInventory' => $canAdjustInventory,
+                ])
             </div>
 
         </div>
     </div>
 
     <script>
-        document.querySelectorAll('[data-auto-filter-form]').forEach(form => {
+        document.querySelectorAll('[data-async-filter-form]').forEach(form => {
             const input = form.querySelector('[data-auto-filter-input]');
             const selects = form.querySelectorAll('[data-auto-filter-select]');
+            const clearButton = form.querySelector('[data-clear-filter]');
+            const target = document.querySelector(form.dataset.resultsTarget);
             let timeout;
+            let controller;
+
+            function buildUrl(baseUrl = form.action) {
+                const params = new URLSearchParams(new FormData(form));
+
+                for (const [key, value] of [...params.entries()]) {
+                    if (value === '') {
+                        params.delete(key);
+                    }
+                }
+
+                return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+            }
+
+            async function loadResults(url = buildUrl()) {
+                if (!target) {
+                    return;
+                }
+
+                controller?.abort();
+                controller = new AbortController();
+                target.style.opacity = '0.55';
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: controller.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('No se pudo cargar la busqueda.');
+                    }
+
+                    target.innerHTML = await response.text();
+                    window.history.replaceState({}, '', url);
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        form.submit();
+                    }
+                } finally {
+                    target.style.opacity = '1';
+                }
+            }
 
             function submitWithDelay() {
                 clearTimeout(timeout);
 
                 timeout = setTimeout(() => {
-                    form.requestSubmit();
-                }, 450);
+                    loadResults();
+                }, 500);
             }
 
             input?.addEventListener('input', submitWithDelay);
 
             selects.forEach(select => {
                 select.addEventListener('change', () => {
-                    form.requestSubmit();
+                    loadResults();
                 });
+            });
+
+            clearButton?.addEventListener('click', () => {
+                form.querySelectorAll('input, select').forEach(field => {
+                    if (field.name !== 'per_page') {
+                        field.value = '';
+                    }
+                });
+
+                loadResults(form.action);
+            });
+
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                loadResults();
+            });
+
+            target?.addEventListener('click', event => {
+                const link = event.target.closest('[data-async-pagination] a');
+
+                if (!link) {
+                    return;
+                }
+
+                event.preventDefault();
+                loadResults(link.href);
             });
         });
     </script>
