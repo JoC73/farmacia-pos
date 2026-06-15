@@ -73,119 +73,37 @@
 
             </div>
 
-            <!-- TOP PRODUCTOS -->
-            <div class="bg-white shadow rounded p-4 sm:p-6 mb-6">
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
 
-                <h3 class="text-base sm:text-lg font-bold mb-4">
-                    Productos Más Vendidos
-                </h3>
+                <!-- TOP PRODUCTOS -->
+                <div class="bg-white shadow rounded p-4 sm:p-6">
 
-                <div class="overflow-x-auto">
-
-                    <table class="w-full min-w-[560px] border text-sm">
-
-                        <thead>
-
-                            <tr class="bg-gray-100">
-
-                                <th class="p-2 border text-left">
-                                    Producto
-                                </th>
-
-                                <th class="p-2 border text-center">
-                                    Cantidad Vendida
-                                </th>
-
-                                <th class="p-2 border text-right">
-                                    Total Generado
-                                </th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                            @forelse($topProductos as $item)
-
-                                <tr>
-
-                                    <td class="p-2 border">
-
-                                        {{ $item->producto?->nombre ?? 'Producto eliminado' }}
-
-                                    </td>
-
-                                    <td class="p-2 border text-center">
-
-                                        {{ $item->total_vendido }}
-
-                                    </td>
-
-                                    <td class="p-2 border text-right">
-
-                                        Q {{ number_format($item->total_generado, 2) }}
-
-                                    </td>
-
-                                </tr>
-
-                            @empty
-
-                                <tr>
-
-                                    <td colspan="3"
-                                        class="p-4 text-center text-gray-500">
-
-                                        No hay ventas registradas.
-
-                                    </td>
-
-                                </tr>
-
-                            @endforelse
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-            <!-- STOCK BAJO -->
-            @if($stockBajo->count())
-
-                <div class="bg-white shadow rounded p-4 sm:p-6 mb-6 border-l-4 border-red-500">
-
-                    <h3 class="text-base sm:text-lg font-bold text-red-700 mb-4">
-
-                        Productos con Stock Bajo
-
+                    <h3 class="text-base sm:text-lg font-bold mb-1">
+                        Productos Más Vendidos
                     </h3>
+
+                    <p class="text-sm text-gray-500 mb-4">
+                        Ranking por cantidad vendida.
+                    </p>
 
                     <div class="overflow-x-auto">
 
-                        <table class="w-full min-w-[640px] border text-sm">
+                        <table class="w-full min-w-[560px] border text-sm">
 
                             <thead>
 
-                                <tr class="bg-red-100">
+                                <tr class="bg-gray-100">
 
                                     <th class="p-2 border text-left">
                                         Producto
                                     </th>
 
                                     <th class="p-2 border text-center">
-                                        Existencia
+                                        Cantidad
                                     </th>
 
-                                    <th class="p-2 border text-center">
-                                        Stock Mínimo
-                                    </th>
-
-                                    <th class="p-2 border text-left">
-                                        Sucursal
+                                    <th class="p-2 border text-right">
+                                        Total
                                     </th>
 
                                 </tr>
@@ -194,37 +112,44 @@
 
                             <tbody>
 
-                                @foreach($stockBajo as $item)
+                                @forelse($topProductos as $item)
 
                                     <tr>
 
                                         <td class="p-2 border">
 
-                                            {{ $item->producto->nombre }}
+                                            {{ $item->producto?->nombre ?? 'Producto eliminado' }}
 
                                         </td>
 
-                                        <td class="p-2 border text-center text-red-600 font-bold">
+                                        <td class="p-2 border text-center font-semibold">
 
-                                            {{ $item->existencia }}
-
-                                        </td>
-
-                                        <td class="p-2 border text-center">
-
-                                            {{ $item->producto->stock_minimo }}
+                                            {{ $item->total_vendido }}
 
                                         </td>
 
-                                        <td class="p-2 border">
+                                        <td class="p-2 border text-right">
 
-                                            {{ $item->sucursal->nombre }}
+                                            Q {{ number_format($item->total_generado, 2) }}
 
                                         </td>
 
                                     </tr>
 
-                                @endforeach
+                                @empty
+
+                                    <tr>
+
+                                        <td colspan="3"
+                                            class="p-4 text-center text-gray-500">
+
+                                            No hay ventas registradas.
+
+                                        </td>
+
+                                    </tr>
+
+                                @endforelse
 
                             </tbody>
 
@@ -234,22 +159,20 @@
 
                 </div>
 
-            @endif
+                <!-- PRODUCTOS POR VENCER -->
+                <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-yellow-500">
 
-            <!-- PRODUCTOS POR VENCER -->
-            @if($productosPorVencer->count())
-
-                <div class="bg-white shadow rounded p-4 sm:p-6 mb-6 border-l-4 border-yellow-500">
-
-                    <h3 class="text-base sm:text-lg font-bold text-yellow-700 mb-4">
-
-                        Productos Próximos a Vencer
-
+                    <h3 class="text-base sm:text-lg font-bold text-yellow-700 mb-1">
+                        Vencen en los Próximos 90 Días
                     </h3>
+
+                    <p class="text-sm text-gray-500 mb-4">
+                        Productos con existencia disponible, ordenados por fecha de vencimiento.
+                    </p>
 
                     <div class="overflow-x-auto">
 
-                        <table class="w-full min-w-[480px] border text-sm">
+                        <table class="w-full min-w-[680px] border text-sm">
 
                             <thead>
 
@@ -260,7 +183,19 @@
                                     </th>
 
                                     <th class="p-2 border text-center">
-                                        Fecha Vencimiento
+                                        Sucursal
+                                    </th>
+
+                                    <th class="p-2 border text-center">
+                                        Existencia
+                                    </th>
+
+                                    <th class="p-2 border text-center">
+                                        Vence
+                                    </th>
+
+                                    <th class="p-2 border text-center">
+                                        Días
                                     </th>
 
                                 </tr>
@@ -269,25 +204,62 @@
 
                             <tbody>
 
-                                @foreach($productosPorVencer as $producto)
+                                @forelse($productosPorVencer as $item)
+                                    @php
+                                        $fechaVencimiento = \Carbon\Carbon::parse($item->producto->fecha_vencimiento);
+                                        $diasRestantes = now()->startOfDay()->diffInDays($fechaVencimiento->copy()->startOfDay(), false);
+                                    @endphp
 
                                     <tr>
 
                                         <td class="p-2 border">
 
-                                            {{ $producto->nombre }}
+                                            {{ $item->producto->nombre }}
+
+                                        </td>
+
+                                        <td class="p-2 border">
+
+                                            {{ $item->sucursal->nombre ?? '-' }}
+
+                                        </td>
+
+                                        <td class="p-2 border text-center font-semibold">
+
+                                            {{ $item->existencia }}
 
                                         </td>
 
                                         <td class="p-2 border text-center">
 
-                                            {{ \Carbon\Carbon::parse($producto->fecha_vencimiento)->format('d/m/Y') }}
+                                            {{ $fechaVencimiento->format('d/m/Y') }}
+
+                                        </td>
+
+                                        <td class="p-2 border text-center">
+
+                                            <span class="inline-flex rounded px-2 py-1 text-xs font-bold {{ $diasRestantes <= 30 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700' }}">
+                                                {{ $diasRestantes }}
+                                            </span>
 
                                         </td>
 
                                     </tr>
 
-                                @endforeach
+                                @empty
+
+                                    <tr>
+
+                                        <td colspan="5"
+                                            class="p-4 text-center text-gray-500">
+
+                                            No hay productos por vencer en los próximos 90 días.
+
+                                        </td>
+
+                                    </tr>
+
+                                @endforelse
 
                             </tbody>
 
@@ -297,7 +269,7 @@
 
                 </div>
 
-            @endif
+            </div>
 
             <!-- PRODUCTOS VENCIDOS -->
             @if($productosVencidos->count())

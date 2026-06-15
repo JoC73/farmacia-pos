@@ -41,27 +41,18 @@ class DashboardController extends Controller
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->count();
 
-        $stockBajo = Inventario::with([
-                'producto',
-                'sucursal'
-            ])
+        $productosPorVencer = Inventario::with(['producto', 'sucursal'])
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
-            ->whereHas('producto')
-            ->get()
-            ->filter(function ($inventario) {
-                return $inventario->existencia <= $inventario->producto->stock_minimo;
-            });
-
-        $productosPorVencer = Producto::whereNotNull('fecha_vencimiento')
-            ->when($sucursalId, fn ($query) => $query->whereHas(
-                'inventarios',
-                fn ($inventario) => $inventario
-                    ->where('sucursal_id', $sucursalId)
-                    ->where('existencia', '>', 0)
-            ))
-            ->whereDate('fecha_vencimiento', '<=', Carbon::now()->addDays(30))
-            ->whereDate('fecha_vencimiento', '>=', Carbon::now())
-            ->orderBy('fecha_vencimiento')
+            ->where('existencia', '>', 0)
+            ->whereHas('producto', fn ($query) => $query
+                ->where('estado', true)
+                ->whereNotNull('fecha_vencimiento')
+                ->whereDate('fecha_vencimiento', '<=', Carbon::now()->addDays(90))
+                ->whereDate('fecha_vencimiento', '>=', Carbon::now()))
+            ->join('productos', 'inventarios.producto_id', '=', 'productos.id')
+            ->select('inventarios.*')
+            ->orderBy('productos.fecha_vencimiento')
+            ->limit(12)
             ->get();
 
         $productosVencidos = Producto::whereNotNull('fecha_vencimiento')
@@ -94,7 +85,6 @@ class DashboardController extends Controller
             'ventasMes',
             'comprasMes',
             'cajasAbiertas',
-            'stockBajo',
             'productosPorVencer',
             'productosVencidos',
             'topProductos',
