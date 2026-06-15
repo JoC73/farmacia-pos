@@ -46,9 +46,30 @@ class CompraController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        if ($proveedores->isEmpty()) {
+            return redirect()
+                ->route('compras.index')
+                ->with('error', 'No hay proveedores activos. Crea al menos un proveedor antes de registrar compras.');
+        }
+
+        if ($productos->isEmpty()) {
+            return redirect()
+                ->route('compras.index')
+                ->with('error', 'No hay productos disponibles para esta sucursal. Realiza una carga inicial o entrada de inventario antes de registrar compras.');
+        }
+
+        $productosCompra = $productos
+            ->map(fn ($producto) => [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'costo' => (float) $producto->costo,
+            ])
+            ->values();
+
         return view('compras.create', compact(
             'productos',
-            'proveedores'
+            'proveedores',
+            'productosCompra'
         ));
     }
 

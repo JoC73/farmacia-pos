@@ -48,20 +48,6 @@
     </div>
 @endif
 
-                @if($proveedores->isEmpty() || $productos->isEmpty())
-                    <div class="mb-4 bg-yellow-100 border border-yellow-300 text-yellow-800 p-4 rounded">
-                        @if($proveedores->isEmpty())
-                            <div class="font-semibold">No hay proveedores activos.</div>
-                            <div class="text-sm">Crea al menos un proveedor antes de registrar compras.</div>
-                        @endif
-
-                        @if($productos->isEmpty())
-                            <div class="font-semibold {{ $proveedores->isEmpty() ? 'mt-2' : '' }}">No hay productos disponibles para esta sucursal.</div>
-                            <div class="text-sm">Carga productos e inventario antes de registrar una compra.</div>
-                        @endif
-                    </div>
-                @endif
-
                 <form method="POST"
                       action="{{ route('compras.store') }}">
 
@@ -175,9 +161,8 @@
                         </a>
 
                         <button type="submit"
-                                @disabled($proveedores->isEmpty() || $productos->isEmpty())
                                 class="px-4 py-2 rounded"
-                                style="background-color: {{ $proveedores->isEmpty() || $productos->isEmpty() ? '#9ca3af' : 'green' }}; color: white;">
+                                style="background-color: green; color: white;">
 
                             Guardar Compra
 
@@ -194,11 +179,7 @@
     </div>
 
 <script>
-    const productos = @json($productos->map(fn ($producto) => [
-        'id' => $producto->id,
-        'nombre' => $producto->nombre,
-        'costo' => (float) $producto->costo,
-    ])->values());
+    const productos = {{ Illuminate\Support\Js::from($productosCompra) }};
 
     let index = 0;
 
