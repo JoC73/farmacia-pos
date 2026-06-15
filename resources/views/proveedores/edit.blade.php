@@ -90,6 +90,26 @@
 
                         </div>
 
+                        <div class="md:col-span-2">
+
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox"
+                                       name="estado"
+                                       value="1"
+                                       class="rounded border-gray-300"
+                                       @checked(old('estado', $proveedor->estado))>
+
+                                <span class="font-medium">
+                                    Proveedor activo
+                                </span>
+                            </label>
+
+                            <p class="mt-1 text-sm text-gray-500">
+                                Si se desmarca, el proveedor quedara inactivo y no deberia usarse para nuevas compras.
+                            </p>
+
+                        </div>
+
                     </div>
 
                     <div class="mt-6 flex gap-3">

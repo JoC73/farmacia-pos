@@ -32,6 +32,8 @@ class ProveedorController extends Controller
 
             'direccion' => 'nullable|max:255',
 
+            'estado' => 'nullable|boolean',
+
         ]);
 
         Proveedor::create([
@@ -44,7 +46,7 @@ class ProveedorController extends Controller
 
             'direccion' => $request->direccion,
 
-            'estado' => true,
+            'estado' => $request->has('estado'),
 
         ]);
 
@@ -104,6 +106,6 @@ class ProveedorController extends Controller
 
         return redirect()
             ->route('proveedores.index')
-            ->with('success', 'Proveedor desactivado.');
+            ->with('success', "Proveedor {$proveedor->nombre} desactivado correctamente.");
     }
 }

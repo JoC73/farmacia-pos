@@ -181,6 +181,7 @@ Route::post('/ventas/{venta}/anular', [VentaController::class, 'anular'])
 */
 
 Route::resource('proveedores', ProveedorController::class)
+    ->parameters(['proveedores' => 'proveedor'])
     ->middleware('permission:compras.ver');
 
 

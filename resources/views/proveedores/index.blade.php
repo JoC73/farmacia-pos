@@ -20,6 +20,16 @@
 
             @endif
 
+            @if(session('error'))
+
+                <div class="mb-4 bg-red-100 border border-red-300 text-red-700 p-4 rounded">
+
+                    {{ session('error') }}
+
+                </div>
+
+            @endif
+
             <div class="mb-4">
 
                 <a href="{{ route('proveedores.create') }}"
@@ -60,7 +70,7 @@
 
                         @forelse($proveedores as $proveedor)
 
-                            <tr>
+                            <tr class="{{ $proveedor->estado ? '' : 'bg-red-50 text-gray-500' }}">
 
                                 <td class="p-2 border">
 
@@ -90,13 +100,13 @@
 
                                     @if($proveedor->estado)
 
-                                        <span class="text-green-600 font-bold">
+                                        <span class="inline-flex rounded bg-green-100 px-2 py-1 text-xs font-bold text-green-700">
                                             ACTIVO
                                         </span>
 
                                     @else
 
-                                        <span class="text-red-600 font-bold">
+                                        <span class="inline-flex rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-700">
                                             INACTIVO
                                         </span>
 
@@ -115,21 +125,31 @@
 
                                         </a>
 
-                                        <form method="POST"
-                                              action="{{ route('proveedores.destroy', $proveedor) }}">
+                                        @if($proveedor->estado)
 
-                                            @csrf
-                                            @method('DELETE')
+                                            <form method="POST"
+                                                  action="{{ route('proveedores.destroy', $proveedor) }}">
 
-                                            <button type="submit"
-                                                    class="text-red-600"
-                                                    onclick="return confirm('¿Desactivar proveedor?')">
+                                                @csrf
+                                                @method('DELETE')
 
-                                                Desactivar
+                                                <button type="submit"
+                                                        class="text-red-600"
+                                                        onclick="return confirm('¿Desactivar proveedor?')">
 
-                                            </button>
+                                                    Desactivar
 
-                                        </form>
+                                                </button>
+
+                                            </form>
+
+                                        @else
+
+                                            <span class="text-gray-400">
+                                                Ya desactivado
+                                            </span>
+
+                                        @endif
 
                                     </div>
 
