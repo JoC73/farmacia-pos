@@ -147,6 +147,10 @@ Route::middleware('auth')->group(function () {
         ->name('ventas.create')
         ->middleware('permission:ventas.crear');
 
+    Route::get('/ventas/productos/buscar', [VentaController::class, 'searchProducts'])
+        ->name('ventas.productos.buscar')
+        ->middleware('permission:ventas.crear');
+
     Route::post('/ventas', [VentaController::class, 'store'])
         ->name('ventas.store')
         ->middleware('permission:ventas.crear');

@@ -36,26 +36,7 @@ class VentaController extends Controller
 
     public function create()
     {
-$productos = Producto::with('inventarios')
-    ->where('estado', true)
-    ->ordenadoPorNombre()
-    ->get()
-    ->map(function ($producto) {
-
-        $inventario = $producto->inventarios
-            ->where('sucursal_id', auth()->user()->sucursal_id)
-            ->first();
-
-        $producto->inventario_actual =
-            $inventario?->existencia ?? 0;
-
-        return $producto;
-    })
-    ->filter(function ($producto) {
-
-        return $producto->inventario_actual > 0;
-
-    });
+        $productos = $this->availableProductsForSale('', 18);
 
         $clientes = Cliente::where('estado', true)
             ->orderBy('nombre')
@@ -65,6 +46,17 @@ $productos = Producto::with('inventarios')
             'productos',
             'clientes'
         ));
+    }
+
+    public function searchProducts(Request $request)
+    {
+        $search = trim((string) $request->input('q', ''));
+
+        if ($search !== '' && mb_strlen($search) < 2) {
+            return response()->json([]);
+        }
+
+        return response()->json($this->availableProductsForSale($search, 30));
     }
 
     public function store(Request $request)
@@ -342,5 +334,49 @@ MovimientoCaja::create([
     private function authorizeSucursalAccess(?int $sucursalId): void
     {
         abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
+    }
+
+    private function availableProductsForSale(string $search = '', int $limit = 30)
+    {
+        $sucursalId = auth()->user()->sucursal_id;
+
+        if (! $sucursalId) {
+            return collect();
+        }
+
+        $normalizedSearch = mb_strtolower($search);
+
+        return Producto::query()
+            ->join('inventarios', 'inventarios.producto_id', '=', 'productos.id')
+            ->where('productos.estado', true)
+            ->where('inventarios.sucursal_id', $sucursalId)
+            ->where('inventarios.existencia', '>', 0)
+            ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch) {
+                $like = "%{$normalizedSearch}%";
+
+                $query->where(function ($subquery) use ($like) {
+                    $subquery
+                        ->whereRaw('LOWER(productos.nombre) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(productos.codigo_barra) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like]);
+                });
+            })
+            ->select([
+                'productos.id',
+                'productos.nombre',
+                'productos.codigo_barra',
+                'productos.precio_venta',
+                'inventarios.existencia as inventario_actual',
+            ])
+            ->orderByRaw('LOWER(productos.nombre)')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($producto) => [
+                'id' => (string) $producto->id,
+                'nombre' => $producto->nombre,
+                'codigo_barra' => $producto->codigo_barra,
+                'precio_venta' => (float) $producto->precio_venta,
+                'inventario_actual' => (int) $producto->inventario_actual,
+            ]);
     }
 }
