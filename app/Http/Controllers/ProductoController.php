@@ -16,6 +16,9 @@ class ProductoController extends Controller
         $categoriaId = $request->input('categoria_id');
 
         $productos = Producto::with('categoria')
+            ->when($sucursalId, fn ($query) => $query->with([
+                'inventarios' => fn ($inventario) => $inventario->where('sucursal_id', $sucursalId),
+            ]))
             ->where('estado', true)
             ->when($sucursalId, fn ($query) => $query->whereHas(
                 'inventarios',
@@ -37,11 +40,16 @@ class ProductoController extends Controller
             ->get();
 
         $canManageGlobalProducts = auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']);
+        $canAdjustLocalInventory = auth()->user()->hasRole('Administrador')
+            && ! $canManageGlobalProducts
+            && auth()->user()->can('inventario.ajustar')
+            && $sucursalId;
 
         if ($request->ajax()) {
             return view('productos.partials.results', compact(
                 'productos',
-                'canManageGlobalProducts'
+                'canManageGlobalProducts',
+                'canAdjustLocalInventory'
             ));
         }
 
@@ -51,7 +59,8 @@ class ProductoController extends Controller
             'perPage',
             'search',
             'categoriaId',
-            'canManageGlobalProducts'
+            'canManageGlobalProducts',
+            'canAdjustLocalInventory'
         ));
     }
 

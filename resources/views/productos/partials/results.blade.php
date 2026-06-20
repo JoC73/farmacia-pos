@@ -73,13 +73,26 @@
                                     Desactivar
                                 </button>
                             </form>
-                        @endif
+                        @elseif($canAdjustLocalInventory)
+                            @php
+                                $localInventario = $producto->inventarios->first();
+                            @endphp
 
-                        @unless($canManageGlobalProducts)
+                            @if($localInventario)
+                                <a href="{{ route('inventarios.ajustar', $localInventario) }}"
+                                   class="inline-flex rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700">
+                                    Ajustar stock
+                                </a>
+                            @else
+                                <span class="text-gray-400">
+                                    Sin inventario local
+                                </span>
+                            @endif
+                        @else
                             <span class="text-gray-400">
                                 Gestion global protegida
                             </span>
-                        @endunless
+                        @endif
                     </td>
                 </tr>
             @empty

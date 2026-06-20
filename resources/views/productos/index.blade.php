@@ -102,6 +102,7 @@
                 @include('productos.partials.results', [
                     'productos' => $productos,
                     'canManageGlobalProducts' => $canManageGlobalProducts,
+                    'canAdjustLocalInventory' => $canAdjustLocalInventory,
                 ])
             </div>
 
