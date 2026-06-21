@@ -316,7 +316,7 @@
             const url = new URL(buscarProductosUrl, window.location.origin);
             url.searchParams.set('q', input.value.trim());
 
-            renderProductoSugerencias(input, [], 'Buscando productos...');
+            mostrarEstadoSugerencias(input, 'Buscando productos...');
 
             const response = await fetch(url, {
                 headers: {
@@ -336,6 +336,29 @@
                 renderProductoSugerencias(input, [], 'No se pudo completar la busqueda.');
             }
         }
+    }
+
+    function mostrarEstadoSugerencias(input, mensaje) {
+        const suggestions = input.closest('.producto-item').querySelector('.producto-suggestions');
+        const currentItems = suggestions.querySelectorAll('.producto-suggestion').length;
+
+        suggestions.classList.remove('hidden');
+
+        if (!currentItems) {
+            suggestions.innerHTML = `<div class="p-3 text-sm text-gray-500">${escapeHtml(mensaje)}</div>`;
+            return;
+        }
+
+        let status = suggestions.querySelector('[data-suggestion-status]');
+
+        if (!status) {
+            status = document.createElement('div');
+            status.dataset.suggestionStatus = 'true';
+            status.className = 'border-t bg-gray-50 px-3 py-2 text-xs text-gray-500';
+            suggestions.appendChild(status);
+        }
+
+        status.textContent = mensaje;
     }
 
     function renderProductoSugerencias(input, productos, mensaje = 'No hay coincidencias.') {

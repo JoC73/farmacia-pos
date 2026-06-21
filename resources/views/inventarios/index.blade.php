@@ -155,7 +155,6 @@
 
                 controller?.abort();
                 controller = new AbortController();
-                target.style.opacity = '0.55';
 
                 try {
                     const response = await fetch(url, {
@@ -175,8 +174,6 @@
                     if (error.name !== 'AbortError') {
                         form.submit();
                     }
-                } finally {
-                    target.style.opacity = '1';
                 }
             }
 

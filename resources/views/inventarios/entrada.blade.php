@@ -62,6 +62,8 @@
                                    id="buscar-producto"
                                    placeholder="Buscar por nombre o código..."
                                    class="w-full border-gray-300 rounded px-3 py-2">
+                            <div id="estado-busqueda-producto"
+                                 class="mt-1 min-h-5 text-sm text-gray-500"></div>
                         </div>
 
                         <div id="productos-resultados"
@@ -138,6 +140,7 @@
         const productosIniciales = {{ Illuminate\Support\Js::from($productos) }};
         const buscarProductosUrl = '{{ route('inventarios.entrada.productos.buscar') }}';
         const buscarInput = document.getElementById('buscar-producto');
+        const estadoBusquedaProducto = document.getElementById('estado-busqueda-producto');
         const productosResultados = document.getElementById('productos-resultados');
         const carritoBody = document.getElementById('carrito-body');
         const inputsHidden = document.getElementById('inputs-hidden');
@@ -154,13 +157,14 @@
 
             if (texto.length === 0) {
                 searchController?.abort();
+                setSearchStatus('');
                 renderProductos(productosIniciales);
                 return;
             }
 
             if (texto.length < 2) {
                 searchController?.abort();
-                renderMensaje('Escribe al menos 2 caracteres para buscar.');
+                setSearchStatus('Escribe al menos 2 caracteres para buscar.');
                 return;
             }
 
@@ -182,7 +186,7 @@
         async function buscarProductos(texto) {
             searchController?.abort();
             searchController = new AbortController();
-            renderMensaje('Buscando productos...');
+            setSearchStatus('Buscando productos...');
 
             try {
                 const url = new URL(buscarProductosUrl, window.location.origin);
@@ -201,9 +205,10 @@
                 }
 
                 renderProductos(await response.json());
+                setSearchStatus('');
             } catch (error) {
                 if (error.name !== 'AbortError') {
-                    renderMensaje('No se pudo completar la busqueda. Intenta nuevamente.');
+                    setSearchStatus('No se pudo completar la busqueda. Intenta nuevamente.');
                 }
             }
         }
@@ -242,6 +247,10 @@
                     ${escapeHtml(mensaje)}
                 </div>
             `;
+        }
+
+        function setSearchStatus(mensaje) {
+            estadoBusquedaProducto.textContent = mensaje;
         }
 
         function escapeHtml(value) {
