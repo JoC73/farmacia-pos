@@ -28,6 +28,55 @@
                 </a>
             </div>
 
+            @can('caja.ver_cierres')
+                <div class="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="bg-white shadow rounded p-4">
+                        <div class="text-sm text-gray-500">Transferencias del mes</div>
+                        <div class="text-2xl font-bold text-emerald-700">
+                            Q {{ number_format($totalTransferenciasMes, 2) }}
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-white shadow rounded p-4">
+                        <h3 class="font-bold text-gray-800 mb-3">Historial reciente de transferencias</h3>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full border text-sm">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="p-2 border text-left">Sucursal</th>
+                                        <th class="p-2 border text-left">Referencia</th>
+                                        <th class="p-2 border text-right">Monto</th>
+                                        <th class="p-2 border text-left">Usuario</th>
+                                        <th class="p-2 border text-left">Fecha</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    @forelse($transferencias as $transferencia)
+                                        <tr>
+                                            <td class="p-2 border">{{ $transferencia->caja->sucursal->nombre ?? '-' }}</td>
+                                            <td class="p-2 border">{{ $transferencia->referencia ?? '-' }}</td>
+                                            <td class="p-2 border text-right">Q {{ number_format($transferencia->monto, 2) }}</td>
+                                            <td class="p-2 border">{{ $transferencia->usuario->name ?? '-' }}</td>
+                                            <td class="p-2 border">
+                                                {{ ($transferencia->fecha_movimiento ?? $transferencia->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="p-4 text-center text-gray-500">
+                                                No hay transferencias registradas.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            @endcan
+
             <div class="bg-white shadow rounded p-4 overflow-x-auto">
                 <table class="w-full border text-sm">
                     <thead>
@@ -71,8 +120,14 @@
                                             Cerrar
                                         </a>
 
-                                        <a href="{{ route('cajas.egreso', $caja) }}" class="text-amber-600 font-bold ml-3">
-                                            Egreso
+                                        @can('caja.ver_cierres')
+                                            <a href="{{ route('cajas.egreso', $caja) }}" class="text-amber-600 font-bold ml-3">
+                                                Egreso
+                                            </a>
+                                        @endcan
+
+                                        <a href="{{ route('cajas.transferencia', $caja) }}" class="text-emerald-700 font-bold ml-3">
+                                            Transferir
                                         </a>
                                     @endif
                                 </td>

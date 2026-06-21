@@ -156,6 +156,12 @@ class ReporteController extends Controller
                 ->whereYear('created_at', now()->year)
                 ->sum('monto');
 
+            $transferenciasMes = MovimientoCaja::where('tipo', 'TRANSFERENCIA_JEFE')
+                ->whereHas('caja', fn ($query) => $query->where('sucursal_id', $sucursal->id))
+                ->whereMonth('fecha_movimiento', now()->month)
+                ->whereYear('fecha_movimiento', now()->year)
+                ->sum('monto');
+
             $cierresHoy = Caja::where('sucursal_id', $sucursal->id)
                 ->where('estado', 'CERRADA')
                 ->whereDate('fecha_cierre', today())
@@ -183,11 +189,12 @@ class ReporteController extends Controller
                 'ventas_mes' => $ventasMes,
                 'compras_mes' => $comprasMes,
                 'egresos_mes' => $egresosMes,
+                'transferencias_mes' => $transferenciasMes,
                 'cierres_hoy' => $cierresHoy,
                 'cierres_mes' => $cierresMes,
                 'diferencia_mes' => $diferenciaMes,
                 'cajas_abiertas' => $cajasAbiertas,
-                'flujo_neto_mes' => $ventasMes - $comprasMes - $egresosMes,
+                'flujo_neto_mes' => $ventasMes - $comprasMes - $egresosMes - $transferenciasMes,
             ];
         });
 

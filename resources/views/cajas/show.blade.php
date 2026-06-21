@@ -57,10 +57,25 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Apertura</div>
                         <div class="text-xl font-bold">Q {{ number_format($caja->monto_apertura, 2) }}</div>
+                    </div>
+
+                    <div class="p-4 bg-gray-100 rounded">
+                        <div class="text-sm text-gray-500">Ventas</div>
+                        <div class="text-xl font-bold">Q {{ number_format($ventas, 2) }}</div>
+                    </div>
+
+                    <div class="p-4 bg-red-50 rounded">
+                        <div class="text-sm text-red-600">Egresos</div>
+                        <div class="text-xl font-bold text-red-700">Q {{ number_format($egresos, 2) }}</div>
+                    </div>
+
+                    <div class="p-4 bg-emerald-50 rounded">
+                        <div class="text-sm text-emerald-700">Transferencias</div>
+                        <div class="text-xl font-bold text-emerald-800">Q {{ number_format($transferencias, 2) }}</div>
                     </div>
 
                     <div class="p-4 bg-gray-100 rounded">
@@ -69,7 +84,9 @@
                             {{ $caja->monto_cierre !== null ? 'Q '.number_format($caja->monto_cierre, 2) : '-' }}
                         </div>
                     </div>
+                </div>
 
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Sistema</div>
                         <div class="text-xl font-bold">Q {{ number_format($caja->total_sistema, 2) }}</div>

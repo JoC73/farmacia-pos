@@ -24,7 +24,36 @@ class CajaController extends Controller
         ->latest()
         ->paginate(20);
 
-        return view('cajas.index', compact('cajas'));
+        $transferencias = collect();
+        $totalTransferenciasMes = 0;
+
+        if ($user->can('caja.ver_cierres')) {
+            $transferenciasQuery = MovimientoCaja::with([
+                'caja.sucursal',
+                'usuario',
+            ])
+                ->where('tipo', 'TRANSFERENCIA_JEFE')
+                ->when($sucursalId, function ($query) use ($sucursalId) {
+                    $query->whereHas('caja', fn ($cajaQuery) => $cajaQuery->where('sucursal_id', $sucursalId));
+                });
+
+            $totalTransferenciasMes = (clone $transferenciasQuery)
+                ->whereMonth('fecha_movimiento', now()->month)
+                ->whereYear('fecha_movimiento', now()->year)
+                ->sum('monto');
+
+            $transferencias = $transferenciasQuery
+                ->latest('fecha_movimiento')
+                ->latest()
+                ->limit(15)
+                ->get();
+        }
+
+        return view('cajas.index', compact(
+            'cajas',
+            'transferencias',
+            'totalTransferenciasMes'
+        ));
     }
 
     public function createApertura()
@@ -148,12 +177,16 @@ class CajaController extends Controller
         $ventas = $this->ventasRegistradas($caja);
 
         $egresos = $this->egresosRegistrados($caja);
-        $totalSistema = $caja->monto_apertura + $ventas - $egresos;
+        $transferencias = $this->transferenciasRegistradas($caja);
+        $salidas = $egresos + $transferencias;
+        $totalSistema = $caja->monto_apertura + $ventas - $salidas;
 
         return view('cajas.cierre', compact(
             'caja',
             'ventas',
             'egresos',
+            'transferencias',
+            'salidas',
             'totalSistema'
         ));
     }
@@ -181,10 +214,10 @@ class CajaController extends Controller
 
         $ventas = $this->ventasRegistradas($caja);
 
-        $egresos = $this->egresosRegistrados($caja);
+        $salidas = $this->salidasRegistradas($caja);
 
         $totalSistema =
-            $caja->monto_apertura + $ventas - $egresos;
+            $caja->monto_apertura + $ventas - $salidas;
 
         $diferencia =
             $request->monto_cierre - $totalSistema;
@@ -258,6 +291,51 @@ class CajaController extends Controller
             ->with('success', 'Egreso de caja registrado correctamente.');
     }
 
+    public function createTransferencia(Caja $caja)
+    {
+        $this->validarCajaParaTransferencia($caja);
+
+        $disponible = $this->efectivoDisponible($caja);
+
+        return view('cajas.transferencia', compact('caja', 'disponible'));
+    }
+
+    public function storeTransferencia(Request $request, Caja $caja)
+    {
+        $this->validarCajaParaTransferencia($caja);
+
+        $data = $request->validate([
+            'referencia' => 'required|string|max:120',
+            'fecha_movimiento' => 'required|date',
+            'monto' => 'required|numeric|min:0.01',
+            'descripcion' => 'nullable|string|max:500',
+        ]);
+
+        $disponible = $this->efectivoDisponible($caja);
+
+        if ((float) $data['monto'] > $disponible) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'monto' => 'La transferencia no puede superar el efectivo disponible en caja.',
+                ]);
+        }
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => auth()->id(),
+            'tipo' => 'TRANSFERENCIA_JEFE',
+            'monto' => $data['monto'],
+            'fecha_movimiento' => $data['fecha_movimiento'],
+            'referencia' => $data['referencia'],
+            'descripcion' => $data['descripcion'] ?: 'Transferencia a jefe',
+        ]);
+
+        return redirect()
+            ->route('cajas.show', $caja)
+            ->with('success', 'Transferencia a jefe registrada correctamente.');
+    }
+
     public function show(Caja $caja)
     {
         $this->authorizeCajaVisibility($caja);
@@ -265,16 +343,40 @@ class CajaController extends Controller
         $caja->load([
             'usuario',
             'sucursal',
+            'movimientos' => fn ($query) => $query->latest('fecha_movimiento')->latest(),
             'movimientos.usuario',
         ]);
 
-        return view('cajas.show', compact('caja'));
+        $ventas = $this->ventasRegistradas($caja);
+        $egresos = $this->egresosRegistrados($caja);
+        $transferencias = $this->transferenciasRegistradas($caja);
+
+        return view('cajas.show', compact(
+            'caja',
+            'ventas',
+            'egresos',
+            'transferencias'
+        ));
     }
 
     private function egresosRegistrados(Caja $caja): float
     {
         return (float) MovimientoCaja::where('caja_id', $caja->id)
             ->where('tipo', 'EGRESO')
+            ->sum('monto');
+    }
+
+    private function transferenciasRegistradas(Caja $caja): float
+    {
+        return (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->where('tipo', 'TRANSFERENCIA_JEFE')
+            ->sum('monto');
+    }
+
+    private function salidasRegistradas(Caja $caja): float
+    {
+        return (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->whereIn('tipo', ['EGRESO', 'TRANSFERENCIA_JEFE'])
             ->sum('monto');
     }
 
@@ -292,6 +394,22 @@ class CajaController extends Controller
         if ($caja->estado === 'CERRADA') {
             abort(403, 'No se pueden registrar egresos en una caja cerrada.');
         }
+    }
+
+    private function validarCajaParaTransferencia(Caja $caja): void
+    {
+        $this->authorizeCajaOperation($caja);
+
+        if ($caja->estado === 'CERRADA') {
+            abort(403, 'No se pueden registrar transferencias en una caja cerrada.');
+        }
+    }
+
+    private function efectivoDisponible(Caja $caja): float
+    {
+        return (float) $caja->monto_apertura
+            + $this->ventasRegistradas($caja)
+            - $this->salidasRegistradas($caja);
     }
 
     private function authorizeSucursalAccess(Caja $caja): void

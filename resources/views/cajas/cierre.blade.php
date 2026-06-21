@@ -31,7 +31,7 @@
                     </div>
                 @endif
 
-                <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Apertura</div>
                         <div class="text-xl font-bold">Q {{ number_format($caja->monto_apertura, 2) }}</div>
@@ -47,10 +47,20 @@
                         <div class="text-xl font-bold text-red-700">Q {{ number_format($egresos, 2) }}</div>
                     </div>
 
+                    <div class="p-4 bg-emerald-50 rounded">
+                        <div class="text-sm text-emerald-700">Transferencias</div>
+                        <div class="text-xl font-bold text-emerald-800">Q {{ number_format($transferencias, 2) }}</div>
+                    </div>
+
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Total sistema</div>
                         <div class="text-xl font-bold">Q {{ number_format($totalSistema, 2) }}</div>
                     </div>
+                </div>
+
+                <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+                    El total de sistema descuenta egresos y transferencias registradas antes del cierre.
+                    Salidas registradas: <strong>Q {{ number_format($salidas, 2) }}</strong>.
                 </div>
 
                 <form method="POST" action="{{ route('cajas.cierre.store', $caja) }}">

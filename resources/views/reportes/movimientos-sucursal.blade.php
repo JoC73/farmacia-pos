@@ -27,7 +27,7 @@
 
                 <div class="overflow-x-auto">
 
-                    <table class="w-full min-w-[1080px] border text-sm">
+                    <table class="w-full min-w-[1180px] border text-sm">
 
                         <thead>
 
@@ -51,6 +51,10 @@
 
                                 <th class="p-2 border text-right">
                                     Egresos Mes
+                                </th>
+
+                                <th class="p-2 border text-right">
+                                    Transferencias Mes
                                 </th>
 
                                 <th class="p-2 border text-right">
@@ -103,6 +107,10 @@
                                         Q {{ number_format($item['egresos_mes'], 2) }}
                                     </td>
 
+                                    <td class="p-2 border text-right text-emerald-700">
+                                        Q {{ number_format($item['transferencias_mes'], 2) }}
+                                    </td>
+
                                     <td class="p-2 border text-right">
                                         Q {{ number_format($item['cierres_hoy'], 2) }}
                                     </td>
@@ -128,7 +136,7 @@
                             @empty
 
                                 <tr>
-                                    <td colspan="10" class="p-4 text-center text-gray-500">
+                                    <td colspan="11" class="p-4 text-center text-gray-500">
                                         No hay sucursales disponibles para mostrar.
                                     </td>
                                 </tr>
