@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Caja;
-use App\Models\Venta;
 use App\Models\MovimientoCaja;
+use App\Models\Sucursal;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +21,6 @@ class CajaController extends Controller
             'sucursal',
         ])
         ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
-        ->when(! $user->can('caja.ver_cierres'), fn ($query) => $query->where('user_id', $user->id))
         ->latest()
         ->paginate(20);
 
@@ -30,37 +29,64 @@ class CajaController extends Controller
 
     public function createApertura()
     {
-        $cajaAbierta = Caja::where('user_id', auth()->id())
-            ->where('estado', 'ABIERTA')
-            ->exists();
+        $user = auth()->user();
+        $sucursalId = $user->visibleSucursalId();
 
-        if ($cajaAbierta) {
+        if ($sucursalId) {
+            $cajaAbierta = Caja::where('sucursal_id', $sucursalId)
+                ->where('estado', 'ABIERTA')
+                ->exists();
 
-            return redirect()
-                ->route('cajas.index')
-                ->with('error', 'Ya tienes una caja abierta.');
+            if ($cajaAbierta) {
+                return redirect()
+                    ->route('cajas.index')
+                    ->with('error', 'Esta sucursal ya tiene una caja abierta.');
+            }
         }
 
-        return view('cajas.apertura');
+        $sucursales = Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
+            ->orderBy('nombre')
+            ->get();
+
+        return view('cajas.apertura', compact('sucursales'));
     }
 
     public function storeApertura(Request $request)
 {
+    $user = auth()->user();
+    $sucursalId = $user->canViewAllSucursales()
+        ? (int) $request->input('sucursal_id')
+        : (int) $user->sucursal_id;
+
     $request->validate([
 
         'monto_apertura' => 'required|numeric|min:0',
 
+        'sucursal_id' => $user->canViewAllSucursales()
+            ? 'required|exists:sucursales,id'
+            : 'nullable',
+
     ]);
+
+    abort_unless($user->canAccessSucursal($sucursalId), 403);
+
+    if (! $sucursalId) {
+        return redirect()
+            ->back()
+            ->withInput()
+            ->with('error', 'No se pudo determinar la sucursal para abrir caja.');
+    }
 
     /*
     |--------------------------------------------------------------------------
-    | VALIDAR CAJA ABIERTA
+    | VALIDAR CAJA ABIERTA POR SUCURSAL
     |--------------------------------------------------------------------------
     */
 
-    $cajaAbierta = Caja::where('user_id', auth()->id())
-        ->where('estado', 'ABIERTA')
-        ->exists();
+    $cajaAbierta = Caja::where('sucursal_id', $sucursalId)
+            ->where('estado', 'ABIERTA')
+            ->exists();
 
     if ($cajaAbierta) {
 
@@ -68,17 +94,15 @@ class CajaController extends Controller
             ->route('cajas.index')
             ->with(
                 'error',
-                'Ya tienes una caja abierta. Debes cerrarla antes de abrir otra.'
+                'Esta sucursal ya tiene una caja abierta. Debes cerrarla antes de abrir otra.'
             );
     }
 
-    DB::transaction(function () use ($request) {
-
-        $user = auth()->user();
+    DB::transaction(function () use ($request, $sucursalId, $user) {
 
         $caja = Caja::create([
 
-            'sucursal_id' => $user->sucursal_id,
+            'sucursal_id' => $sucursalId,
 
             'user_id' => $user->id,
 
@@ -121,13 +145,7 @@ class CajaController extends Controller
                 ->with('error', 'La caja ya está cerrada.');
         }
 
-        $ventas = Venta::where('user_id', $caja->user_id)
-            ->where('estado', 'FINALIZADA')
-            ->whereBetween('created_at', [
-                $caja->fecha_apertura,
-                now()
-            ])
-            ->sum('total');
+        $ventas = $this->ventasRegistradas($caja);
 
         $egresos = $this->egresosRegistrados($caja);
         $totalSistema = $caja->monto_apertura + $ventas - $egresos;
@@ -161,13 +179,7 @@ class CajaController extends Controller
 
     DB::transaction(function () use ($request, $caja) {
 
-        $ventas = Venta::where('user_id', $caja->user_id)
-            ->where('estado', 'FINALIZADA')
-            ->whereBetween('created_at', [
-                $caja->fecha_apertura,
-                now()
-            ])
-            ->sum('total');
+        $ventas = $this->ventasRegistradas($caja);
 
         $egresos = $this->egresosRegistrados($caja);
 
@@ -266,6 +278,13 @@ class CajaController extends Controller
             ->sum('monto');
     }
 
+    private function ventasRegistradas(Caja $caja): float
+    {
+        return (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->where('tipo', 'VENTA')
+            ->sum('monto');
+    }
+
     private function validarCajaParaEgreso(Caja $caja): void
     {
         $this->authorizeCajaOperation($caja);
@@ -284,17 +303,11 @@ class CajaController extends Controller
     {
         $this->authorizeSucursalAccess($caja);
 
-        if ($caja->user_id !== auth()->id() && ! auth()->user()->can('caja.ver_cierres')) {
-            abort(403, 'No tienes permiso para operar esta caja.');
-        }
+        abort_unless($caja->estado === 'ABIERTA' || auth()->user()->can('caja.ver_cierres'), 403);
     }
 
     private function authorizeCajaVisibility(Caja $caja): void
     {
         $this->authorizeSucursalAccess($caja);
-
-        if ($caja->user_id !== auth()->id() && ! auth()->user()->can('caja.ver_cierres')) {
-            abort(403, 'No tienes permiso para ver esta caja.');
-        }
     }
 }

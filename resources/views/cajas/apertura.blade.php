@@ -34,6 +34,36 @@
                 <form method="POST" action="{{ route('cajas.apertura.store') }}">
                     @csrf
 
+                    @if($sucursales->count() > 1)
+                        <div class="mb-4">
+                            <label class="block font-medium mb-1">
+                                Sucursal
+                            </label>
+
+                            <select name="sucursal_id"
+                                    class="w-full border-gray-300 rounded"
+                                    required>
+                                <option value="">Seleccione sucursal</option>
+                                @foreach($sucursales as $sucursal)
+                                    <option value="{{ $sucursal->id }}" @selected(old('sucursal_id') == $sucursal->id)>
+                                        {{ $sucursal->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @elseif($sucursales->count() === 1)
+                        <input type="hidden" name="sucursal_id" value="{{ $sucursales->first()->id }}">
+
+                        <div class="mb-4 rounded bg-gray-100 p-3">
+                            <div class="text-sm text-gray-500">
+                                Sucursal
+                            </div>
+                            <div class="font-bold text-gray-800">
+                                {{ $sucursales->first()->nombre }}
+                            </div>
+                        </div>
+                    @endif
+
                     <div>
                         <label class="block font-medium mb-1">
                             Monto de apertura

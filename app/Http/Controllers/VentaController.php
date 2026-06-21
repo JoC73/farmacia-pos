@@ -74,8 +74,9 @@ class VentaController extends Controller
 |--------------------------------------------------------------------------
 */
 
-$caja = Caja::where('user_id', auth()->id())
+$caja = Caja::where('sucursal_id', auth()->user()->sucursal_id)
     ->where('estado', 'ABIERTA')
+    ->latest()
     ->first();
 
 if (!$caja) {
@@ -83,7 +84,7 @@ if (!$caja) {
     return redirect()
         ->back()
         ->withInput()
-        ->with('error', 'Debe abrir caja antes de vender.');
+        ->with('error', 'Debe existir una caja abierta para tu sucursal antes de vender.');
 }
 
 $user = auth()->user();
