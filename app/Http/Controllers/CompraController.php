@@ -32,15 +32,7 @@ class CompraController extends Controller
 
     public function create()
     {
-        $sucursalId = auth()->user()->visibleSucursalId();
-
-        $productos = Producto::where('estado', true)
-            ->when($sucursalId, fn ($query) => $query->whereHas(
-                'inventarios',
-                fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
-            ))
-            ->ordenadoPorNombre()
-            ->get();
+        $productos = $this->availableProductsForPurchase('', 20);
 
         $proveedores = Proveedor::where('estado', true)
             ->orderBy('nombre')
@@ -63,6 +55,7 @@ class CompraController extends Controller
                 'id' => $producto->id,
                 'nombre' => $producto->nombre,
                 'costo' => (float) $producto->costo,
+                'codigo_barra' => $producto->codigo_barra,
             ])
             ->values();
 
@@ -71,6 +64,25 @@ class CompraController extends Controller
             'proveedores',
             'productosCompra'
         ));
+    }
+
+    public function searchProducts(Request $request)
+    {
+        $search = trim((string) $request->input('q', ''));
+
+        if ($search !== '' && mb_strlen($search) < 2) {
+            return response()->json([]);
+        }
+
+        return response()->json(
+            $this->availableProductsForPurchase($search, 30)
+                ->map(fn ($producto) => [
+                    'id' => (string) $producto->id,
+                    'nombre' => $producto->nombre,
+                    'codigo_barra' => $producto->codigo_barra,
+                    'costo' => (float) $producto->costo,
+                ])
+        );
     }
 
     public function store(Request $request)
@@ -278,5 +290,39 @@ foreach ($request->productos as $item) {
         ]);
 
         return view('compras.show', compact('compra'));
+    }
+
+    private function availableProductsForPurchase(string $search = '', int $limit = 30)
+    {
+        $sucursalId = auth()->user()->visibleSucursalId();
+        $normalizedSearch = mb_strtolower($search);
+
+        return Producto::query()
+            ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
+            ->where('productos.estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereHas(
+                'inventarios',
+                fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
+            ))
+            ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch) {
+                $like = "%{$normalizedSearch}%";
+
+                $query->where(function ($subquery) use ($like) {
+                    $subquery
+                        ->whereRaw('LOWER(productos.nombre) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(productos.codigo_barra) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(categorias.nombre, \'\')) LIKE ?', [$like]);
+                });
+            })
+            ->select([
+                'productos.id',
+                'productos.nombre',
+                'productos.codigo_barra',
+                'productos.costo',
+            ])
+            ->orderByRaw('LOWER(productos.nombre)')
+            ->limit($limit)
+            ->get();
     }
 }

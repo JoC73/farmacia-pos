@@ -15,9 +15,7 @@ class EntradaInventarioController extends Controller
     {
         $sucursalId = auth()->user()->visibleSucursalId();
 
-        $productos = Producto::where('estado', true)
-            ->ordenadoPorNombre()
-            ->get();
+        $productos = $this->availableProductsForEntry('', 18);
 
         $sucursales = Sucursal::where('estado', true)
             ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
@@ -28,6 +26,17 @@ class EntradaInventarioController extends Controller
             'productos',
             'sucursales'
         ));
+    }
+
+    public function searchProducts(Request $request)
+    {
+        $search = trim((string) $request->input('q', ''));
+
+        if ($search !== '' && mb_strlen($search) < 2) {
+            return response()->json([]);
+        }
+
+        return response()->json($this->availableProductsForEntry($search, 30));
     }
 
     public function store(Request $request)
@@ -88,5 +97,38 @@ class EntradaInventarioController extends Controller
         return redirect()
             ->route('inventarios.index')
             ->with('success', 'Inventario ingresado correctamente.');
+    }
+
+    private function availableProductsForEntry(string $search = '', int $limit = 30)
+    {
+        $normalizedSearch = mb_strtolower($search);
+
+        return Producto::query()
+            ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
+            ->where('productos.estado', true)
+            ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch) {
+                $like = "%{$normalizedSearch}%";
+
+                $query->where(function ($subquery) use ($like) {
+                    $subquery
+                        ->whereRaw('LOWER(productos.nombre) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(productos.codigo_barra) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(categorias.nombre, \'\')) LIKE ?', [$like]);
+                });
+            })
+            ->select([
+                'productos.id',
+                'productos.nombre',
+                'productos.codigo_barra',
+            ])
+            ->orderByRaw('LOWER(productos.nombre)')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($producto) => [
+                'id' => (string) $producto->id,
+                'nombre' => $producto->nombre,
+                'codigo_barra' => $producto->codigo_barra,
+            ]);
     }
 }

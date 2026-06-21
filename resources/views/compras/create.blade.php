@@ -179,17 +179,11 @@
     </div>
 
 <script>
-    const productos = {{ Illuminate\Support\Js::from($productosCompra) }};
+    const buscarProductosUrl = '{{ route('compras.productos.buscar') }}';
 
     let index = 0;
-
-    function productoOptions()
-    {
-        return [
-            '<option value="">Seleccione producto</option>',
-            ...productos.map(producto => `<option value="${producto.id}" data-costo="${producto.costo}">${producto.nombre}</option>`)
-        ].join('');
-    }
+    let productSearchTimeout;
+    let productSearchController;
 
     function agregarFila()
     {
@@ -200,9 +194,14 @@
         row.innerHTML = `
             <td class="border p-2 text-center row-number"></td>
             <td class="border p-2">
-                <select name="productos[${index}][producto_id]" class="producto-select w-full rounded border-gray-300">
-                    ${productoOptions()}
-                </select>
+                <div class="relative">
+                    <input type="search"
+                           class="producto-search-input w-full rounded border-gray-300"
+                           placeholder="Buscar producto..."
+                           autocomplete="off">
+                    <input type="hidden" name="productos[${index}][producto_id]" class="producto-id-input">
+                    <div class="producto-suggestions absolute z-20 mt-1 hidden max-h-64 w-full overflow-y-auto rounded border bg-white shadow"></div>
+                </div>
             </td>
             <td class="border p-2">
                 <input type="number" min="1" value="1" name="productos[${index}][cantidad]" class="cantidad-input w-full rounded border-gray-300 text-right">
@@ -256,17 +255,30 @@
     });
 
     document.addEventListener('change', event => {
-        if (event.target.matches('.producto-select')) {
-            const option = event.target.selectedOptions[0];
-            const row = event.target.closest('.producto-item');
-            const costoInput = row.querySelector('.costo-input');
-
-            if (option?.dataset?.costo && parseFloat(costoInput.value || 0) <= 0) {
-                costoInput.value = parseFloat(option.dataset.costo).toFixed(2);
-            }
-
-            calcularTotales();
+        if (event.target.matches('.producto-search-input')) {
+            event.target.closest('.producto-item').querySelector('.producto-id-input').value = '';
         }
+    });
+
+    document.addEventListener('input', event => {
+        if (!event.target.matches('.producto-search-input')) {
+            return;
+        }
+
+        const input = event.target;
+        const row = input.closest('.producto-item');
+        row.querySelector('.producto-id-input').value = '';
+
+        clearTimeout(productSearchTimeout);
+
+        if (input.value.trim().length < 2) {
+            renderProductoSugerencias(input, [], 'Escribe al menos 2 caracteres.');
+            return;
+        }
+
+        productSearchTimeout = setTimeout(() => {
+            buscarProductoCompra(input);
+        }, 250);
     });
 
     document.addEventListener('click', event => {
@@ -275,7 +287,92 @@
             renumerarFilas();
             calcularTotales();
         }
+
+        const suggestion = event.target.closest('.producto-suggestion');
+
+        if (suggestion) {
+            const row = suggestion.closest('.producto-item');
+            const input = row.querySelector('.producto-search-input');
+            const productIdInput = row.querySelector('.producto-id-input');
+            const costoInput = row.querySelector('.costo-input');
+
+            input.value = suggestion.dataset.nombre;
+            productIdInput.value = suggestion.dataset.id;
+
+            if (parseFloat(costoInput.value || 0) <= 0) {
+                costoInput.value = parseFloat(suggestion.dataset.costo || 0).toFixed(2);
+            }
+
+            row.querySelector('.producto-suggestions').classList.add('hidden');
+            calcularTotales();
+        }
     });
+
+    async function buscarProductoCompra(input) {
+        productSearchController?.abort();
+        productSearchController = new AbortController();
+
+        try {
+            const url = new URL(buscarProductosUrl, window.location.origin);
+            url.searchParams.set('q', input.value.trim());
+
+            renderProductoSugerencias(input, [], 'Buscando productos...');
+
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                signal: productSearchController.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error('No se pudo buscar productos.');
+            }
+
+            renderProductoSugerencias(input, await response.json());
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                renderProductoSugerencias(input, [], 'No se pudo completar la busqueda.');
+            }
+        }
+    }
+
+    function renderProductoSugerencias(input, productos, mensaje = 'No hay coincidencias.') {
+        const suggestions = input.closest('.producto-item').querySelector('.producto-suggestions');
+
+        suggestions.innerHTML = '';
+        suggestions.classList.remove('hidden');
+
+        if (!productos.length) {
+            suggestions.innerHTML = `<div class="p-3 text-sm text-gray-500">${escapeHtml(mensaje)}</div>`;
+            return;
+        }
+
+        productos.forEach(producto => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'producto-suggestion block w-full px-3 py-2 text-left text-sm hover:bg-blue-50';
+            button.dataset.id = producto.id;
+            button.dataset.nombre = producto.nombre;
+            button.dataset.costo = producto.costo;
+            button.innerHTML = `
+                <div class="font-semibold text-gray-800">${escapeHtml(producto.nombre)}</div>
+                <div class="text-xs text-gray-500">Código: ${escapeHtml(producto.codigo_barra)} | Costo: Q ${Number(producto.costo).toFixed(2)}</div>
+            `;
+
+            suggestions.appendChild(button);
+        });
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
 
     document.getElementById('agregar-producto').addEventListener('click', agregarFila);
 

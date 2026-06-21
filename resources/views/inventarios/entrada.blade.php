@@ -64,31 +64,8 @@
                                    class="w-full border-gray-300 rounded px-3 py-2">
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[520px] overflow-y-auto pr-2">
-
-                            @foreach ($productos as $producto)
-                                <button type="button"
-                                        class="producto-card text-left border rounded p-4 hover:shadow transition bg-gray-50"
-                                        data-id="{{ $producto->id }}"
-                                        data-nombre="{{ strtolower($producto->nombre) }}"
-                                        data-codigo="{{ strtolower($producto->codigo_barra) }}"
-                                        data-label="{{ $producto->nombre }}">
-
-                                    <div class="font-bold text-gray-800">
-                                        {{ $producto->nombre }}
-                                    </div>
-
-                                    <div class="text-sm text-gray-500">
-                                        Código: {{ $producto->codigo_barra }}
-                                    </div>
-
-                                    <div class="mt-2 text-xs text-blue-700 bg-blue-100 inline-block px-2 py-1 rounded">
-                                        Producto existente
-                                    </div>
-
-                                </button>
-                            @endforeach
-
+                        <div id="productos-resultados"
+                             class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[520px] overflow-y-auto pr-2">
                         </div>
 
                     </div>
@@ -158,34 +135,123 @@
     <script>
         let carrito = [];
 
+        const productosIniciales = {{ Illuminate\Support\Js::from($productos) }};
+        const buscarProductosUrl = '{{ route('inventarios.entrada.productos.buscar') }}';
         const buscarInput = document.getElementById('buscar-producto');
-        const productoCards = document.querySelectorAll('.producto-card');
+        const productosResultados = document.getElementById('productos-resultados');
         const carritoBody = document.getElementById('carrito-body');
         const inputsHidden = document.getElementById('inputs-hidden');
         const carritoVacio = document.getElementById('carrito-vacio');
+        let searchTimeout;
+        let searchController;
+
+        renderProductos(productosIniciales);
 
         buscarInput.addEventListener('input', function () {
-            const texto = this.value.toLowerCase();
+            const texto = this.value.trim();
 
-            productoCards.forEach(card => {
-                const nombre = card.dataset.nombre;
-                const codigo = card.dataset.codigo;
+            clearTimeout(searchTimeout);
 
-                card.style.display =
-                    nombre.includes(texto) || codigo.includes(texto)
-                        ? 'block'
-                        : 'none';
-            });
+            if (texto.length === 0) {
+                searchController?.abort();
+                renderProductos(productosIniciales);
+                return;
+            }
+
+            if (texto.length < 2) {
+                searchController?.abort();
+                renderMensaje('Escribe al menos 2 caracteres para buscar.');
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                buscarProductos(texto);
+            }, 250);
         });
 
-        productoCards.forEach(card => {
-            card.addEventListener('click', function () {
-                agregarProducto(
-                    this.dataset.id,
-                    this.dataset.label
-                );
-            });
+        productosResultados.addEventListener('click', function (event) {
+            const card = event.target.closest('[data-producto-card]');
+
+            if (!card) {
+                return;
+            }
+
+            agregarProducto(card.dataset.id, card.dataset.label);
         });
+
+        async function buscarProductos(texto) {
+            searchController?.abort();
+            searchController = new AbortController();
+            renderMensaje('Buscando productos...');
+
+            try {
+                const url = new URL(buscarProductosUrl, window.location.origin);
+                url.searchParams.set('q', texto);
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    signal: searchController.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error('No se pudo buscar productos.');
+                }
+
+                renderProductos(await response.json());
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    renderMensaje('No se pudo completar la busqueda. Intenta nuevamente.');
+                }
+            }
+        }
+
+        function renderProductos(productos) {
+            productosResultados.innerHTML = '';
+
+            if (!productos.length) {
+                renderMensaje('No hay productos disponibles.');
+                return;
+            }
+
+            productos.forEach(producto => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'text-left border rounded p-4 hover:shadow transition bg-gray-50';
+                button.dataset.productoCard = 'true';
+                button.dataset.id = producto.id;
+                button.dataset.label = producto.nombre;
+
+                button.innerHTML = `
+                    <div class="font-bold text-gray-800">${escapeHtml(producto.nombre)}</div>
+                    <div class="text-sm text-gray-500">Código: ${escapeHtml(producto.codigo_barra)}</div>
+                    <div class="mt-2 text-xs text-blue-700 bg-blue-100 inline-block px-2 py-1 rounded">
+                        Producto existente
+                    </div>
+                `;
+
+                productosResultados.appendChild(button);
+            });
+        }
+
+        function renderMensaje(mensaje) {
+            productosResultados.innerHTML = `
+                <div class="col-span-3 text-center text-gray-500 p-6">
+                    ${escapeHtml(mensaje)}
+                </div>
+            `;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
 
         function agregarProducto(id, nombre) {
             const existente = carrito.find(item => item.id === id);

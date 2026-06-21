@@ -348,6 +348,7 @@ MovimientoCaja::create([
 
         return Producto::query()
             ->join('inventarios', 'inventarios.producto_id', '=', 'productos.id')
+            ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
             ->where('productos.estado', true)
             ->where('inventarios.sucursal_id', $sucursalId)
             ->where('inventarios.existencia', '>', 0)
@@ -358,7 +359,8 @@ MovimientoCaja::create([
                     $subquery
                         ->whereRaw('LOWER(productos.nombre) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(productos.codigo_barra) LIKE ?', [$like])
-                        ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like]);
+                        ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(categorias.nombre, \'\')) LIKE ?', [$like]);
                 });
             })
             ->select([

@@ -129,6 +129,10 @@ Route::middleware('auth')->group(function () {
         ->name('inventarios.entrada')
         ->middleware('permission:inventario.ajustar');
 
+    Route::get('/inventarios/entrada/productos/buscar', [EntradaInventarioController::class, 'searchProducts'])
+        ->name('inventarios.entrada.productos.buscar')
+        ->middleware('permission:inventario.ajustar');
+
     Route::post('/inventarios/entrada', [EntradaInventarioController::class, 'store'])
         ->name('inventarios.entrada.store')
         ->middleware('permission:inventario.ajustar');
@@ -201,6 +205,10 @@ Route::get('/compras', [CompraController::class, 'index'])
 
 Route::get('/compras/create', [CompraController::class, 'create'])
     ->name('compras.create')
+    ->middleware('permission:compras.crear');
+
+Route::get('/compras/productos/buscar', [CompraController::class, 'searchProducts'])
+    ->name('compras.productos.buscar')
     ->middleware('permission:compras.crear');
 
 Route::post('/compras', [CompraController::class, 'store'])

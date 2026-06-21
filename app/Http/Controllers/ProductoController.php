@@ -28,7 +28,8 @@ class ProductoController extends Controller
                 $subquery
                     ->where('nombre', 'like', "%{$search}%")
                     ->orWhere('codigo_barra', 'like', "%{$search}%")
-                    ->orWhere('laboratorio', 'like', "%{$search}%");
+                    ->orWhere('laboratorio', 'like', "%{$search}%")
+                    ->orWhereHas('categoria', fn ($categoria) => $categoria->where('nombre', 'like', "%{$search}%"));
             }))
             ->when($categoriaId, fn ($query) => $query->where('categoria_id', $categoriaId))
             ->ordenadoPorNombre()

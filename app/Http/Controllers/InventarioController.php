@@ -25,6 +25,7 @@ class InventarioController extends Controller
             'sucursal'
         ])
         ->join('productos', 'inventarios.producto_id', '=', 'productos.id')
+        ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
         ->leftJoin('sucursales', 'inventarios.sucursal_id', '=', 'sucursales.id')
         ->select('inventarios.*')
         ->where('productos.estado', true)
@@ -35,6 +36,7 @@ class InventarioController extends Controller
                 ->where('productos.nombre', 'like', "%{$search}%")
                 ->orWhere('productos.codigo_barra', 'like', "%{$search}%")
                 ->orWhere('productos.laboratorio', 'like', "%{$search}%")
+                ->orWhere('categorias.nombre', 'like', "%{$search}%")
                 ->orWhere('sucursales.nombre', 'like', "%{$search}%");
         }))
         ->when($estadoStock === 'bajo', fn ($query) => $query->whereColumn('inventarios.existencia', '<=', 'productos.stock_minimo'))
