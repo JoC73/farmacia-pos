@@ -95,14 +95,14 @@
                     </div>
 
                     <!-- PRODUCTOS -->
-                    <div class="bg-gray-50 rounded border">
+                    <div class="rounded border bg-slate-50">
                         <div class="flex flex-col gap-3 border-b bg-white p-4 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h3 class="font-bold text-gray-800">
                                     Productos
                                 </h3>
                                 <p class="text-sm text-gray-500">
-                                    Registra compras largas usando filas compactas.
+                                    Agrega productos por linea con cantidad, costo y fecha de vencimiento.
                                 </p>
                             </div>
 
@@ -121,22 +121,12 @@
                             </div>
                         </div>
 
-                        <div class="overflow-x-auto overflow-y-visible">
-                            <table class="w-full min-w-[1120px] text-sm">
-                                <thead class="sticky top-0 z-10 bg-gray-100">
-                                    <tr>
-                                        <th class="border p-2 text-left w-12">#</th>
-                                        <th class="border p-2 text-left">Producto</th>
-                                        <th class="border p-2 text-right w-28">Cantidad</th>
-                                        <th class="border p-2 text-right w-32">Costo</th>
-                                        <th class="border p-2 text-left w-44">Vence</th>
-                                        <th class="border p-2 text-right w-36">Subtotal</th>
-                                        <th class="border p-2 text-center w-24">Acción</th>
-                                    </tr>
-                                </thead>
+                        <div id="productos-body" class="space-y-3 p-4"></div>
 
-                                <tbody id="productos-body"></tbody>
-                            </table>
+                        <div id="sin-productos" class="hidden px-4 pb-4">
+                            <div class="rounded border border-dashed border-gray-300 bg-white p-6 text-center text-gray-500">
+                                No hay productos agregados.
+                            </div>
                         </div>
 
                         <div class="sticky bottom-0 flex flex-col gap-2 border-t bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -189,36 +179,57 @@
     function agregarFila()
     {
         const tbody = document.getElementById('productos-body');
-        const row = document.createElement('tr');
+        const row = document.createElement('div');
 
-        row.className = 'producto-item bg-white';
+        row.className = 'producto-item rounded border border-gray-200 bg-white p-4 shadow-sm';
         row.innerHTML = `
-            <td class="border p-2 text-center row-number"></td>
-            <td class="border p-2">
-                <div class="relative">
-                    <input type="search"
-                           class="producto-search-input w-full rounded border-gray-300"
-                           placeholder="Buscar producto..."
-                           autocomplete="off">
-                    <input type="hidden" name="productos[${index}][producto_id]" class="producto-id-input">
-                    <div class="producto-suggestions absolute z-40 mt-1 hidden max-h-80 w-full min-w-[360px] overflow-y-auto rounded border bg-white shadow-lg"></div>
+            <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="row-number inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700"></span>
+                    <div>
+                        <div class="text-sm font-semibold text-gray-800">Linea de compra</div>
+                        <div class="producto-seleccionado text-xs text-gray-500">Sin producto seleccionado</div>
+                    </div>
                 </div>
-            </td>
-            <td class="border p-2">
-                <input type="number" min="1" value="1" name="productos[${index}][cantidad]" class="cantidad-input w-full rounded border-gray-300 text-right">
-            </td>
-            <td class="border p-2">
-                <input type="number" step="0.01" min="0.01" value="0.00" name="productos[${index}][costo]" class="costo-input w-full rounded border-gray-300 text-right">
-            </td>
-            <td class="border p-2">
-                <input type="date" name="productos[${index}][fecha_vencimiento]" class="fecha-vencimiento-input w-full rounded border-gray-300">
-            </td>
-            <td class="border p-2 text-right font-semibold subtotal-text">Q 0.00</td>
-            <td class="border p-2 text-center">
-                <button type="button" class="remover-fila rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white">
+
+                <button type="button" class="remover-fila self-start rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 sm:self-auto">
                     Quitar
                 </button>
-            </td>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 lg:grid-cols-12">
+                <div class="relative lg:col-span-6">
+                    <label class="mb-1 block text-sm font-medium text-gray-700">Producto</label>
+                    <input type="search"
+                           class="producto-search-input w-full rounded border-gray-300"
+                           placeholder="Buscar por nombre, codigo o laboratorio..."
+                           autocomplete="off">
+                    <input type="hidden" name="productos[${index}][producto_id]" class="producto-id-input">
+                    <div class="producto-suggestions absolute z-50 mt-1 hidden max-h-72 w-full overflow-y-auto rounded border border-gray-200 bg-white shadow-xl"></div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <label class="mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
+                    <input type="number" min="1" value="1" name="productos[${index}][cantidad]" class="cantidad-input w-full rounded border-gray-300 text-right">
+                </div>
+
+                <div class="lg:col-span-2">
+                    <label class="mb-1 block text-sm font-medium text-gray-700">Costo</label>
+                    <input type="number" step="0.01" min="0.01" value="0.00" name="productos[${index}][costo]" class="costo-input w-full rounded border-gray-300 text-right">
+                </div>
+
+                <div class="lg:col-span-2">
+                    <label class="mb-1 block text-sm font-medium text-gray-700">Vence</label>
+                    <input type="date" name="productos[${index}][fecha_vencimiento]" class="fecha-vencimiento-input w-full rounded border-gray-300">
+                </div>
+            </div>
+
+            <div class="mt-3 flex justify-end border-t pt-3">
+                <div class="rounded bg-slate-100 px-4 py-2 text-right">
+                    <div class="text-xs text-gray-500">Subtotal</div>
+                    <div class="subtotal-text text-lg font-bold text-gray-900">Q 0.00</div>
+                </div>
+            </div>
         `;
 
         tbody.appendChild(row);
@@ -233,7 +244,10 @@
             row.querySelector('.row-number').innerText = position + 1;
         });
 
-        document.getElementById('lineas-total').innerText = document.querySelectorAll('.producto-item').length;
+        const totalLineas = document.querySelectorAll('.producto-item').length;
+
+        document.getElementById('lineas-total').innerText = totalLineas;
+        document.getElementById('sin-productos').classList.toggle('hidden', totalLineas > 0);
     }
 
     function calcularTotales()
@@ -272,6 +286,7 @@
         const input = event.target;
         const row = input.closest('.producto-item');
         row.querySelector('.producto-id-input').value = '';
+        row.querySelector('.producto-seleccionado').textContent = 'Sin producto seleccionado';
 
         clearTimeout(productSearchTimeout);
 
@@ -299,9 +314,11 @@
             const input = row.querySelector('.producto-search-input');
             const productIdInput = row.querySelector('.producto-id-input');
             const costoInput = row.querySelector('.costo-input');
+            const selectedText = row.querySelector('.producto-seleccionado');
 
             input.value = suggestion.dataset.nombre;
             productIdInput.value = suggestion.dataset.id;
+            selectedText.textContent = `Codigo: ${suggestion.dataset.codigo || 'N/A'}`;
 
             if (parseFloat(costoInput.value || 0) <= 0) {
                 costoInput.value = parseFloat(suggestion.dataset.costo || 0).toFixed(2);
@@ -382,6 +399,7 @@
             button.className = 'producto-suggestion block w-full px-3 py-2 text-left text-sm hover:bg-blue-50';
             button.dataset.id = producto.id;
             button.dataset.nombre = producto.nombre;
+            button.dataset.codigo = producto.codigo_barra;
             button.dataset.costo = producto.costo;
             button.innerHTML = `
                 <div class="font-semibold text-gray-800">${escapeHtml(producto.nombre)}</div>
