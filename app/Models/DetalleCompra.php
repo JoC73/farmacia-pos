@@ -14,6 +14,11 @@ class DetalleCompra extends Model
         'cantidad',
         'costo_unitario',
         'subtotal',
+        'fecha_vencimiento',
+    ];
+
+    protected $casts = [
+        'fecha_vencimiento' => 'date',
     ];
 
     public function compra()

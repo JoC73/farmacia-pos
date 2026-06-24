@@ -11,6 +11,7 @@
                 <th class="p-2 border">Sucursal</th>
                 <th class="p-2 border">Existencia</th>
                 <th class="p-2 border">Stock mínimo</th>
+                <th class="p-2 border">Vence</th>
                 <th class="p-2 border">Estado</th>
                 @if($canAdjustInventory)
                     <th class="p-2 border">Acciones</th>
@@ -38,6 +39,10 @@
                     </td>
 
                     <td class="p-2 border">
+                        {{ optional($inventario->fecha_vencimiento)->format('d/m/Y') ?? 'Sin fecha' }}
+                    </td>
+
+                    <td class="p-2 border">
                         @if($inventario->producto && $inventario->existencia <= $inventario->producto->stock_minimo)
                             <span class="text-red-600 font-bold">
                                 STOCK BAJO
@@ -53,14 +58,14 @@
                         <td class="p-2 border text-center">
                             <a href="{{ route('inventarios.ajustar', $inventario) }}"
                                class="inline-flex items-center px-3 py-1 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700">
-                                Ajustar
+                                Ajustar stock / fecha
                             </a>
                         </td>
                     @endif
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $canAdjustInventory ? 6 : 5 }}" class="p-4 text-center text-gray-500">
+                    <td colspan="{{ $canAdjustInventory ? 7 : 6 }}" class="p-4 text-center text-gray-500">
                         No hay inventario registrado.
                     </td>
                 </tr>

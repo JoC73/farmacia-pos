@@ -6,7 +6,6 @@ use App\Models\Caja;
 use App\Models\Compra;
 use App\Models\DetalleVenta;
 use App\Models\Inventario;
-use App\Models\Producto;
 use App\Models\Venta;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -44,26 +43,26 @@ class DashboardController extends Controller
         $productosPorVencer = Inventario::with(['producto', 'sucursal'])
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->where('existencia', '>', 0)
-            ->whereHas('producto', fn ($query) => $query
-                ->where('estado', true)
-                ->whereNotNull('fecha_vencimiento')
-                ->whereDate('fecha_vencimiento', '<=', Carbon::now()->addDays(90))
-                ->whereDate('fecha_vencimiento', '>=', Carbon::now()))
+            ->whereNotNull('inventarios.fecha_vencimiento')
+            ->whereDate('inventarios.fecha_vencimiento', '<=', Carbon::now()->addDays(90))
+            ->whereDate('inventarios.fecha_vencimiento', '>=', Carbon::now())
+            ->whereHas('producto', fn ($query) => $query->where('estado', true))
             ->join('productos', 'inventarios.producto_id', '=', 'productos.id')
             ->select('inventarios.*')
-            ->orderBy('productos.fecha_vencimiento')
+            ->orderBy('inventarios.fecha_vencimiento')
             ->limit(12)
             ->get();
 
-        $productosVencidos = Producto::whereNotNull('fecha_vencimiento')
+        $productosVencidos = Inventario::with(['producto', 'sucursal'])
+            ->where('existencia', '>', 0)
+            ->whereNotNull('inventarios.fecha_vencimiento')
             ->when($sucursalId, fn ($query) => $query->whereHas(
-                'inventarios',
-                fn ($inventario) => $inventario
-                    ->where('sucursal_id', $sucursalId)
-                    ->where('existencia', '>', 0)
+                'sucursal',
+                fn ($sucursal) => $sucursal->whereKey($sucursalId)
             ))
-            ->whereDate('fecha_vencimiento', '<', Carbon::now())
-            ->orderBy('fecha_vencimiento')
+            ->whereHas('producto', fn ($query) => $query->where('estado', true))
+            ->whereDate('inventarios.fecha_vencimiento', '<', Carbon::now())
+            ->orderBy('inventarios.fecha_vencimiento')
             ->get();
 
         $topProductos = DetalleVenta::select(

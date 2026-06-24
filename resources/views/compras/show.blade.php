@@ -86,6 +86,10 @@
                             </th>
 
                             <th class="border p-2">
+                                Vence
+                            </th>
+
+                            <th class="border p-2">
                                 Subtotal
                             </th>
 
@@ -114,6 +118,12 @@
                                 <td class="border p-2 text-right">
 
                                     Q {{ number_format($detalle->costo_unitario, 2) }}
+
+                                </td>
+
+                                <td class="border p-2 text-center">
+
+                                    {{ optional($detalle->fecha_vencimiento)->format('d/m/Y') ?? 'Sin fecha' }}
 
                                 </td>
 

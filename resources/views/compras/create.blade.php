@@ -121,14 +121,15 @@
                             </div>
                         </div>
 
-                        <div class="max-h-[540px] overflow-auto">
-                            <table class="w-full min-w-[900px] text-sm">
+                        <div class="overflow-x-auto overflow-y-visible">
+                            <table class="w-full min-w-[1120px] text-sm">
                                 <thead class="sticky top-0 z-10 bg-gray-100">
                                     <tr>
                                         <th class="border p-2 text-left w-12">#</th>
                                         <th class="border p-2 text-left">Producto</th>
                                         <th class="border p-2 text-right w-28">Cantidad</th>
                                         <th class="border p-2 text-right w-32">Costo</th>
+                                        <th class="border p-2 text-left w-44">Vence</th>
                                         <th class="border p-2 text-right w-36">Subtotal</th>
                                         <th class="border p-2 text-center w-24">Acción</th>
                                     </tr>
@@ -200,7 +201,7 @@
                            placeholder="Buscar producto..."
                            autocomplete="off">
                     <input type="hidden" name="productos[${index}][producto_id]" class="producto-id-input">
-                    <div class="producto-suggestions absolute z-20 mt-1 hidden max-h-64 w-full overflow-y-auto rounded border bg-white shadow"></div>
+                    <div class="producto-suggestions absolute z-40 mt-1 hidden max-h-80 w-full min-w-[360px] overflow-y-auto rounded border bg-white shadow-lg"></div>
                 </div>
             </td>
             <td class="border p-2">
@@ -208,6 +209,9 @@
             </td>
             <td class="border p-2">
                 <input type="number" step="0.01" min="0.01" value="0.00" name="productos[${index}][costo]" class="costo-input w-full rounded border-gray-300 text-right">
+            </td>
+            <td class="border p-2">
+                <input type="date" name="productos[${index}][fecha_vencimiento]" class="fecha-vencimiento-input w-full rounded border-gray-300">
             </td>
             <td class="border p-2 text-right font-semibold subtotal-text">Q 0.00</td>
             <td class="border p-2 text-center">

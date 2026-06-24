@@ -85,6 +85,7 @@ class InventarioController extends Controller
 
         $data = $request->validate([
             'existencia' => ['required', 'integer', 'min:0'],
+            'fecha_vencimiento' => ['nullable', 'date'],
             'observacion' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -96,31 +97,52 @@ class InventarioController extends Controller
             $existenciaAnterior = (int) $inventario->existencia;
             $existenciaNueva = (int) $data['existencia'];
             $diferencia = $existenciaNueva - $existenciaAnterior;
+            $fechaAnterior = optional($inventario->fecha_vencimiento)->format('Y-m-d');
+            $fechaNueva = $data['fecha_vencimiento'] ?? null;
+            $fechaCambio = $fechaAnterior !== $fechaNueva;
 
-            if ($diferencia === 0) {
+            if ($diferencia === 0 && ! $fechaCambio) {
                 return;
             }
 
             $inventario->update([
                 'existencia' => $existenciaNueva,
+                'fecha_vencimiento' => $fechaNueva,
             ]);
 
-            MovimientoInventario::create([
-                'producto_id' => $inventario->producto_id,
-                'sucursal_id' => $inventario->sucursal_id,
-                'user_id' => auth()->id(),
-                'tipo_movimiento' => $diferencia > 0 ? 'AJUSTE_ENTRADA' : 'AJUSTE_SALIDA',
-                'cantidad' => abs($diferencia),
-                'existencia_anterior' => $existenciaAnterior,
-                'existencia_nueva' => $existenciaNueva,
-                'referencia' => 'Ajuste manual de existencia',
-                'observacion' => $data['observacion'] ?: 'Ajuste manual realizado por administrador',
-            ]);
+            if ($diferencia !== 0) {
+                MovimientoInventario::create([
+                    'producto_id' => $inventario->producto_id,
+                    'sucursal_id' => $inventario->sucursal_id,
+                    'user_id' => auth()->id(),
+                    'tipo_movimiento' => $diferencia > 0 ? 'AJUSTE_ENTRADA' : 'AJUSTE_SALIDA',
+                    'cantidad' => abs($diferencia),
+                    'existencia_anterior' => $existenciaAnterior,
+                    'existencia_nueva' => $existenciaNueva,
+                    'referencia' => 'Ajuste manual de existencia',
+                    'observacion' => $data['observacion'] ?: 'Ajuste manual realizado por administrador',
+                ]);
+            }
+
+            if ($fechaCambio) {
+                MovimientoInventario::create([
+                    'producto_id' => $inventario->producto_id,
+                    'sucursal_id' => $inventario->sucursal_id,
+                    'user_id' => auth()->id(),
+                    'tipo_movimiento' => 'AJUSTE_ENTRADA',
+                    'cantidad' => 0,
+                    'existencia_anterior' => $existenciaNueva,
+                    'existencia_nueva' => $existenciaNueva,
+                    'referencia' => 'Ajuste de vencimiento',
+                    'observacion' => $data['observacion']
+                        ?: "Fecha de vencimiento actualizada de ".($fechaAnterior ?: 'sin fecha')." a ".($fechaNueva ?: 'sin fecha'),
+                ]);
+            }
         });
 
         return redirect()
             ->route('inventarios.index')
-            ->with('success', 'Existencia actualizada correctamente.');
+            ->with('success', 'Inventario actualizado correctamente.');
     }
 
     private function authorizeInventoryAdjustment(Inventario $inventario): void

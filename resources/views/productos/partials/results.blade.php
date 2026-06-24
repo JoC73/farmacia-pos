@@ -47,7 +47,14 @@
                     </td>
 
                     <td class="p-2 border">
-                        {{ $producto->fecha_vencimiento ?? 'N/A' }}
+                        @php
+                            $localInventarioForDate = $producto->relationLoaded('inventarios')
+                                ? $producto->inventarios->first()
+                                : null;
+                            $fechaVencimiento = $localInventarioForDate?->fecha_vencimiento ?? $producto->fecha_vencimiento;
+                        @endphp
+
+                        {{ $fechaVencimiento ? \Carbon\Carbon::parse($fechaVencimiento)->format('d/m/Y') : 'Sin fecha' }}
                     </td>
 
                     <td class="p-2 border">
@@ -81,7 +88,7 @@
                             @if($localInventario)
                                 <a href="{{ route('inventarios.ajustar', $localInventario) }}"
                                    class="inline-flex rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700">
-                                    Ajustar stock
+                                    Ajustar stock / fecha
                                 </a>
                             @else
                                 <span class="text-gray-400">

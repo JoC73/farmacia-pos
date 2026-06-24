@@ -190,8 +190,18 @@ class CargaInicialProductoController extends Controller
                     $existenciaAnterior = (int) $inventario->existencia;
                     $existenciaNueva = (int) $row['existencia_inicial'];
 
+                    $fechaAnterior = optional($inventario->fecha_vencimiento)->format('Y-m-d');
+                    $fechaNueva = $row['fecha_vencimiento'];
+                    $fechaCambio = $fechaAnterior !== $fechaNueva;
+
+                    if ($existenciaNueva !== $existenciaAnterior || $fechaCambio) {
+                        $inventario->update([
+                            'existencia' => $existenciaNueva,
+                            'fecha_vencimiento' => $fechaNueva,
+                        ]);
+                    }
+
                     if ($existenciaNueva !== $existenciaAnterior) {
-                        $inventario->update(['existencia' => $existenciaNueva]);
 
                         MovimientoInventario::create([
                             'producto_id' => $producto->id,

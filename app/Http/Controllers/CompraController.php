@@ -109,6 +109,8 @@ class CompraController extends Controller
 
             'productos.*.costo' => 'required|numeric|min:0.01',
 
+            'productos.*.fecha_vencimiento' => 'nullable|date',
+
             'observacion' => 'nullable|string|max:500',
 
         ]);
@@ -156,6 +158,8 @@ foreach ($request->productos as $item) {
                     'cantidad' => $item['cantidad'],
 
                     'costo' => $item['costo'],
+
+                    'fecha_vencimiento' => $item['fecha_vencimiento'] ?? null,
 
                     'subtotal' => $subtotal,
 
@@ -206,6 +210,8 @@ foreach ($request->productos as $item) {
 
                 $costo = $item['costo'];
 
+                $fechaVencimiento = $item['fecha_vencimiento'];
+
                 $subtotal = $item['subtotal'];
 
                 // DETALLE
@@ -220,6 +226,8 @@ foreach ($request->productos as $item) {
                     'costo_unitario' => $costo,
 
                     'subtotal' => $subtotal,
+
+                    'fecha_vencimiento' => $fechaVencimiento,
 
                 ]);
 
@@ -242,11 +250,17 @@ foreach ($request->productos as $item) {
                 $existenciaNueva =
                     $existenciaAnterior + $cantidad;
 
-                $inventario->update([
+                $inventarioData = [
 
                     'existencia' => $existenciaNueva,
 
-                ]);
+                ];
+
+                if ($fechaVencimiento) {
+                    $inventarioData['fecha_vencimiento'] = $fechaVencimiento;
+                }
+
+                $inventario->update($inventarioData);
 
                 // KARDEX
                 MovimientoInventario::create([
@@ -267,7 +281,9 @@ foreach ($request->productos as $item) {
 
                     'referencia' => $compra->numero_factura,
 
-                    'observacion' => 'Ingreso por compra',
+                    'observacion' => $fechaVencimiento
+                        ? "Ingreso por compra. Vence: {$fechaVencimiento}"
+                        : 'Ingreso por compra',
 
                 ]);
             }

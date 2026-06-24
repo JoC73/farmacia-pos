@@ -11,6 +11,14 @@
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
 
             <div class="bg-white shadow rounded p-6">
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-gray-800">
+                        Ajustar stock y vencimiento
+                    </h3>
+                    <p class="text-sm text-gray-500">
+                        Estos cambios aplican solo a la sucursal del inventario seleccionado.
+                    </p>
+                </div>
 
                 @if ($errors->any())
                     <div class="mb-4 bg-red-100 border border-red-300 text-red-700 p-4 rounded">
@@ -60,6 +68,15 @@
                         </div>
                     </div>
 
+                    <div class="bg-gray-50 rounded p-4 md:col-span-2">
+                        <div class="text-sm text-gray-500">
+                            Vencimiento registrado en esta sucursal
+                        </div>
+                        <div class="text-2xl font-bold text-gray-900">
+                            {{ optional($inventario->fecha_vencimiento)->format('d/m/Y') ?? 'Sin fecha' }}
+                        </div>
+                    </div>
+
                 </div>
 
                 <form method="POST" action="{{ route('inventarios.ajustar.update', $inventario) }}">
@@ -78,6 +95,19 @@
                                    value="{{ old('existencia', $inventario->existencia) }}"
                                    class="w-full border-gray-300 rounded"
                                    required>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium mb-1">
+                                Fecha de vencimiento
+                            </label>
+                            <input type="date"
+                                   name="fecha_vencimiento"
+                                   value="{{ old('fecha_vencimiento', optional($inventario->fecha_vencimiento)->format('Y-m-d')) }}"
+                                   class="w-full border-gray-300 rounded">
+                            <p class="mt-1 text-sm text-gray-500">
+                                Deja el campo vacío si el producto no tiene vencimiento registrado.
+                            </p>
                         </div>
 
                         <div>

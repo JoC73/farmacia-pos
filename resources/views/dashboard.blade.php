@@ -206,7 +206,7 @@
 
                                 @forelse($productosPorVencer as $item)
                                     @php
-                                        $fechaVencimiento = \Carbon\Carbon::parse($item->producto->fecha_vencimiento);
+                                        $fechaVencimiento = \Carbon\Carbon::parse($item->fecha_vencimiento);
                                         $diasRestantes = now()->startOfDay()->diffInDays($fechaVencimiento->copy()->startOfDay(), false);
                                     @endphp
 
@@ -295,6 +295,10 @@
                                     </th>
 
                                     <th class="p-2 border text-center">
+                                        Sucursal
+                                    </th>
+
+                                    <th class="p-2 border text-center">
                                         Fecha Vencimiento
                                     </th>
 
@@ -304,19 +308,25 @@
 
                             <tbody>
 
-                                @foreach($productosVencidos as $producto)
+                                @foreach($productosVencidos as $item)
 
                                     <tr>
 
                                         <td class="p-2 border">
 
-                                            {{ $producto->nombre }}
+                                            {{ $item->producto->nombre ?? 'Producto eliminado' }}
+
+                                        </td>
+
+                                        <td class="p-2 border text-center">
+
+                                            {{ $item->sucursal->nombre ?? '-' }}
 
                                         </td>
 
                                         <td class="p-2 border text-center text-red-700 font-bold">
 
-                                            {{ \Carbon\Carbon::parse($producto->fecha_vencimiento)->format('d/m/Y') }}
+                                            {{ \Carbon\Carbon::parse($item->fecha_vencimiento)->format('d/m/Y') }}
 
                                         </td>
 
