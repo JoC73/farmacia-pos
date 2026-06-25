@@ -87,6 +87,10 @@ Route::middleware('auth')->group(function () {
         ->name('inventarios.ajustar.update')
         ->middleware(['permission:inventario.ajustar', 'role:Administrador|Administrador Global|Super Usuario']);
 
+    Route::patch('/inventarios/{inventario}/vencimiento', [InventarioController::class, 'actualizarFechaVencimiento'])
+        ->name('inventarios.vencimiento.update')
+        ->middleware(['permission:inventario.ajustar', 'role:Administrador|Administrador Global|Super Usuario']);
+
     Route::get('/inventarios/fisico', [InventarioFisicoController::class, 'index'])
         ->name('inventarios.fisico')
         ->middleware(['permission:inventario.ajustar', 'premium:physical_inventory']);

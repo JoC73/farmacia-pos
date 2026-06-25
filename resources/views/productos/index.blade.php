@@ -106,6 +106,62 @@
                 ])
             </div>
 
+            @if($canAdjustLocalInventory)
+                <div id="expiry-modal"
+                     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4"
+                     aria-hidden="true">
+                    <div class="w-full max-w-md rounded bg-white shadow-xl">
+                        <div class="border-b p-5">
+                            <h3 class="text-lg font-bold text-gray-900">
+                                Fecha de vencimiento
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Actualiza solo la fecha del producto en tu sucursal.
+                            </p>
+                        </div>
+
+                        <form id="expiry-form" method="POST" action="">
+                            @csrf
+                            @method('PATCH')
+
+                            <div class="space-y-4 p-5">
+                                <div class="rounded bg-gray-50 p-4">
+                                    <div class="text-sm text-gray-500">Producto</div>
+                                    <div id="expiry-product-name" class="font-bold text-gray-900">-</div>
+                                    <div id="expiry-branch-name" class="mt-1 text-sm text-gray-500">-</div>
+                                </div>
+
+                                <div>
+                                    <label for="expiry-date" class="mb-1 block text-sm font-semibold text-gray-700">
+                                        Fecha de vencimiento
+                                    </label>
+                                    <input id="expiry-date"
+                                           type="date"
+                                           name="fecha_vencimiento"
+                                           class="w-full rounded border-gray-300">
+                                    <p class="mt-1 text-sm text-gray-500">
+                                        Puedes dejarla vacía para quitar la fecha registrada.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-2 border-t bg-gray-50 p-4">
+                                <button type="button"
+                                        class="rounded bg-gray-600 px-4 py-2 text-white"
+                                        data-close-expiry-modal>
+                                    Cancelar
+                                </button>
+
+                                <button type="submit"
+                                        class="rounded bg-blue-600 px-4 py-2 font-semibold text-white">
+                                    Guardar fecha
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
+
         </div>
     </div>
 
@@ -193,13 +249,44 @@
             target?.addEventListener('click', event => {
                 const link = event.target.closest('[data-async-pagination] a');
 
-                if (!link) {
-                    return;
+                if (link) {
+                    event.preventDefault();
+                    loadResults(link.href);
                 }
-
-                event.preventDefault();
-                loadResults(link.href);
             });
+        });
+
+        const expiryModal = document.getElementById('expiry-modal');
+        const expiryForm = document.getElementById('expiry-form');
+        const expiryDate = document.getElementById('expiry-date');
+        const expiryProductName = document.getElementById('expiry-product-name');
+        const expiryBranchName = document.getElementById('expiry-branch-name');
+
+        document.addEventListener('click', event => {
+            const openButton = event.target.closest('[data-open-expiry-modal]');
+
+            if (openButton && expiryModal) {
+                expiryForm.action = openButton.dataset.action;
+                expiryDate.value = openButton.dataset.fecha || '';
+                expiryProductName.textContent = openButton.dataset.producto || '-';
+                expiryBranchName.textContent = openButton.dataset.sucursal || '-';
+                expiryModal.classList.remove('hidden');
+                expiryModal.classList.add('flex');
+                expiryModal.setAttribute('aria-hidden', 'false');
+                setTimeout(() => expiryDate.focus(), 50);
+            }
+
+            if (event.target.closest('[data-close-expiry-modal]') && expiryModal) {
+                expiryModal.classList.add('hidden');
+                expiryModal.classList.remove('flex');
+                expiryModal.setAttribute('aria-hidden', 'true');
+            }
+
+            if (event.target === expiryModal) {
+                expiryModal.classList.add('hidden');
+                expiryModal.classList.remove('flex');
+                expiryModal.setAttribute('aria-hidden', 'true');
+            }
         });
     </script>
 </x-app-layout>

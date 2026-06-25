@@ -86,10 +86,22 @@
                             @endphp
 
                             @if($localInventario)
-                                <a href="{{ route('inventarios.ajustar', $localInventario) }}"
-                                   class="inline-flex rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700">
-                                    Ajustar stock / fecha
-                                </a>
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="{{ route('inventarios.ajustar', $localInventario) }}"
+                                       class="inline-flex rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700">
+                                        Stock
+                                    </a>
+
+                                    <button type="button"
+                                            class="inline-flex rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+                                            data-open-expiry-modal
+                                            data-action="{{ route('inventarios.vencimiento.update', $localInventario) }}"
+                                            data-producto="{{ $producto->nombre }}"
+                                            data-sucursal="{{ $localInventario->sucursal->nombre ?? auth()->user()->sucursal?->nombre ?? 'Sucursal asignada' }}"
+                                            data-fecha="{{ optional($localInventario->fecha_vencimiento)->format('Y-m-d') }}">
+                                        {{ $localInventario->fecha_vencimiento ? 'Editar fecha' : 'Agregar fecha' }}
+                                    </button>
+                                </div>
                             @else
                                 <span class="text-gray-400">
                                     Sin inventario local

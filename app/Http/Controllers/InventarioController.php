@@ -145,6 +145,46 @@ class InventarioController extends Controller
             ->with('success', 'Inventario actualizado correctamente.');
     }
 
+    public function actualizarFechaVencimiento(Request $request, Inventario $inventario)
+    {
+        $this->authorizeInventoryAdjustment($inventario);
+
+        $data = $request->validate([
+            'fecha_vencimiento' => ['nullable', 'date'],
+        ]);
+
+        DB::transaction(function () use ($inventario, $data) {
+            $inventario = Inventario::whereKey($inventario->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $fechaAnterior = optional($inventario->fecha_vencimiento)->format('Y-m-d');
+            $fechaNueva = $data['fecha_vencimiento'] ?? null;
+
+            if ($fechaAnterior === $fechaNueva) {
+                return;
+            }
+
+            $inventario->update([
+                'fecha_vencimiento' => $fechaNueva,
+            ]);
+
+            MovimientoInventario::create([
+                'producto_id' => $inventario->producto_id,
+                'sucursal_id' => $inventario->sucursal_id,
+                'user_id' => auth()->id(),
+                'tipo_movimiento' => 'AJUSTE_ENTRADA',
+                'cantidad' => 0,
+                'existencia_anterior' => (int) $inventario->existencia,
+                'existencia_nueva' => (int) $inventario->existencia,
+                'referencia' => 'Ajuste de vencimiento',
+                'observacion' => "Fecha de vencimiento actualizada de ".($fechaAnterior ?: 'sin fecha')." a ".($fechaNueva ?: 'sin fecha'),
+            ]);
+        });
+
+        return back()->with('success', 'Fecha de vencimiento actualizada correctamente.');
+    }
+
     private function authorizeInventoryAdjustment(Inventario $inventario): void
     {
         abort_unless(auth()->user()->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']), 403);
