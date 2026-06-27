@@ -77,8 +77,16 @@
                                  class="mt-1 min-h-5 text-sm text-gray-500"></div>
                         </div>
 
-                        <div id="productos-resultados"
-                             class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[520px] overflow-y-auto pr-2">
+                        <div class="rounded border bg-white">
+                            <div class="grid grid-cols-[minmax(0,1fr)_90px_90px] gap-2 border-b bg-gray-100 px-3 py-2 text-xs font-bold uppercase text-gray-600">
+                                <div>Producto</div>
+                                <div class="text-right">Precio</div>
+                                <div class="text-right">Stock</div>
+                            </div>
+
+                            <div id="productos-resultados"
+                                 class="max-h-[520px] divide-y overflow-y-auto">
+                            </div>
                         </div>
 
                     </div>
@@ -245,7 +253,7 @@
             productos.forEach(producto => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = 'text-left border rounded p-4 hover:shadow transition bg-gray-50';
+                button.className = 'grid w-full grid-cols-[minmax(0,1fr)_90px_90px] items-center gap-2 px-3 py-3 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none';
                 button.dataset.productoCard = 'true';
                 button.dataset.id = producto.id;
                 button.dataset.precio = producto.precio_venta;
@@ -253,11 +261,17 @@
                 button.dataset.label = producto.nombre;
 
                 button.innerHTML = `
-                    <div class="font-bold text-gray-800">${escapeHtml(producto.nombre)}</div>
-                    <div class="text-sm text-gray-500">Código: ${escapeHtml(producto.codigo_barra)}</div>
-                    <div class="mt-2 flex justify-between items-center">
-                        <span class="font-bold text-green-700">Q ${Number(producto.precio_venta).toFixed(2)}</span>
-                        <span class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">Stock: ${producto.inventario_actual}</span>
+                    <div class="min-w-0">
+                        <div class="truncate font-semibold text-gray-900">${escapeHtml(producto.nombre)}</div>
+                        <div class="text-xs text-gray-500">Codigo: ${escapeHtml(producto.codigo_barra)}</div>
+                    </div>
+                    <div class="text-right font-bold text-green-700">
+                        Q ${Number(producto.precio_venta).toFixed(2)}
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-flex min-w-10 justify-center rounded bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
+                            ${producto.inventario_actual}
+                        </span>
                     </div>
                 `;
 
@@ -267,7 +281,7 @@
 
         function renderMensaje(mensaje) {
             productosResultados.innerHTML = `
-                <div class="col-span-3 text-center text-gray-500 p-6">
+                <div class="text-center text-gray-500 p-6">
                     ${escapeHtml(mensaje)}
                 </div>
             `;
