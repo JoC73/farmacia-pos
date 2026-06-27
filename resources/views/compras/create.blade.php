@@ -94,39 +94,55 @@
 
                     </div>
 
-                    <!-- PRODUCTOS -->
-                    <div class="rounded border bg-slate-50">
-                        <div class="flex flex-col gap-3 border-b bg-white p-4 md:flex-row md:items-center md:justify-between">
+                    <div class="rounded border bg-white">
+                        <div class="border-b p-4">
                             <div>
                                 <h3 class="font-bold text-gray-800">
                                     Productos
                                 </h3>
                                 <p class="text-sm text-gray-500">
-                                    Agrega productos por linea con cantidad, costo y fecha de vencimiento.
+                                    Busca, agrega y edita lineas de compra desde una lista compacta.
                                 </p>
                             </div>
 
-                            <div class="flex flex-wrap gap-2">
-                                <button type="button"
-                                        id="agregar-producto"
-                                        class="rounded bg-blue-600 px-4 py-2 text-white">
-                                    Agregar fila
-                                </button>
+                            <div class="relative mt-4">
+                                <label for="buscar-producto-compra" class="mb-1 block text-sm font-semibold text-gray-700">
+                                    Buscar producto
+                                </label>
+                                <input type="search"
+                                       id="buscar-producto-compra"
+                                       class="w-full rounded border-gray-300"
+                                       placeholder="Nombre, codigo, laboratorio o categoria"
+                                       autocomplete="off">
+                                <div id="estado-busqueda-producto"
+                                     class="mt-1 min-h-5 text-sm text-gray-500"></div>
 
-                                <button type="button"
-                                        id="agregar-cinco"
-                                        class="rounded bg-slate-700 px-4 py-2 text-white">
-                                    +5 filas
-                                </button>
+                                <div id="productos-resultados-compra"
+                                     class="absolute z-50 mt-1 hidden max-h-80 w-full overflow-y-auto rounded border border-gray-200 bg-white shadow-xl">
+                                </div>
                             </div>
                         </div>
 
-                        <div id="productos-body" class="space-y-3 p-4"></div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[980px] text-sm">
+                                <thead>
+                                    <tr class="bg-gray-100 text-gray-700">
+                                        <th class="border p-2 text-left w-12">#</th>
+                                        <th class="border p-2 text-left">Producto</th>
+                                        <th class="border p-2 text-right w-28">Cantidad</th>
+                                        <th class="border p-2 text-right w-32">Costo</th>
+                                        <th class="border p-2 text-left w-40">Vence</th>
+                                        <th class="border p-2 text-right w-36">Subtotal</th>
+                                        <th class="border p-2 text-center w-24">Accion</th>
+                                    </tr>
+                                </thead>
 
-                        <div id="sin-productos" class="hidden px-4 pb-4">
-                            <div class="rounded border border-dashed border-gray-300 bg-white p-6 text-center text-gray-500">
-                                No hay productos agregados.
-                            </div>
+                                <tbody id="productos-body"></tbody>
+                            </table>
+                        </div>
+
+                        <div id="sin-productos" class="border-t p-6 text-center text-gray-500">
+                            Busca un producto y agregalo a la compra.
                         </div>
 
                         <div class="sticky bottom-0 flex flex-col gap-2 border-t bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -171,173 +187,117 @@
 
 <script>
     const buscarProductosUrl = '{{ route('compras.productos.buscar') }}';
+    const buscarProductoInput = document.getElementById('buscar-producto-compra');
+    const estadoBusqueda = document.getElementById('estado-busqueda-producto');
+    const resultadosCompra = document.getElementById('productos-resultados-compra');
+    const productosBody = document.getElementById('productos-body');
+    const sinProductos = document.getElementById('sin-productos');
+    const lineasTotal = document.getElementById('lineas-total');
+    const totalGeneral = document.getElementById('total-general');
 
-    let index = 0;
     let productSearchTimeout;
     let productSearchController;
+    let nextRowId = 0;
+    const productosSeleccionados = [];
+    const searchCache = new Map();
 
-    function agregarFila()
-    {
-        const tbody = document.getElementById('productos-body');
-        const row = document.createElement('div');
-
-        row.className = 'producto-item rounded border border-gray-200 bg-white p-4 shadow-sm';
-        row.innerHTML = `
-            <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="row-number inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700"></span>
-                    <div>
-                        <div class="text-sm font-semibold text-gray-800">Linea de compra</div>
-                        <div class="producto-seleccionado text-xs text-gray-500">Sin producto seleccionado</div>
-                    </div>
-                </div>
-
-                <button type="button" class="remover-fila self-start rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 sm:self-auto">
-                    Quitar
-                </button>
-            </div>
-
-            <div class="grid grid-cols-1 gap-3 lg:grid-cols-12">
-                <div class="relative lg:col-span-6">
-                    <label class="mb-1 block text-sm font-medium text-gray-700">Producto</label>
-                    <input type="search"
-                           class="producto-search-input w-full rounded border-gray-300"
-                           placeholder="Buscar por nombre, codigo o laboratorio..."
-                           autocomplete="off">
-                    <input type="hidden" name="productos[${index}][producto_id]" class="producto-id-input">
-                    <div class="producto-suggestions absolute z-50 mt-1 hidden max-h-72 w-full overflow-y-auto rounded border border-gray-200 bg-white shadow-xl"></div>
-                </div>
-
-                <div class="lg:col-span-2">
-                    <label class="mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
-                    <input type="number" min="1" value="1" name="productos[${index}][cantidad]" class="cantidad-input w-full rounded border-gray-300 text-right">
-                </div>
-
-                <div class="lg:col-span-2">
-                    <label class="mb-1 block text-sm font-medium text-gray-700">Costo</label>
-                    <input type="number" step="0.01" min="0.01" value="0.00" name="productos[${index}][costo]" class="costo-input w-full rounded border-gray-300 text-right">
-                </div>
-
-                <div class="lg:col-span-2">
-                    <label class="mb-1 block text-sm font-medium text-gray-700">Vence</label>
-                    <input type="date" name="productos[${index}][fecha_vencimiento]" class="fecha-vencimiento-input w-full rounded border-gray-300">
-                </div>
-            </div>
-
-            <div class="mt-3 flex justify-end border-t pt-3">
-                <div class="rounded bg-slate-100 px-4 py-2 text-right">
-                    <div class="text-xs text-gray-500">Subtotal</div>
-                    <div class="subtotal-text text-lg font-bold text-gray-900">Q 0.00</div>
-                </div>
-            </div>
-        `;
-
-        tbody.appendChild(row);
-        index++;
-        renumerarFilas();
-        calcularTotales();
-    }
-
-    function renumerarFilas()
-    {
-        document.querySelectorAll('.producto-item').forEach((row, position) => {
-            row.querySelector('.row-number').innerText = position + 1;
-        });
-
-        const totalLineas = document.querySelectorAll('.producto-item').length;
-
-        document.getElementById('lineas-total').innerText = totalLineas;
-        document.getElementById('sin-productos').classList.toggle('hidden', totalLineas > 0);
-    }
-
-    function calcularTotales()
-    {
-        let totalGeneral = 0;
-
-        document.querySelectorAll('.producto-item').forEach(row => {
-            const cantidad = parseFloat(row.querySelector('.cantidad-input').value || 0);
-            const costo = parseFloat(row.querySelector('.costo-input').value || 0);
-            const subtotal = cantidad * costo;
-
-            row.querySelector('.subtotal-text').innerText = `Q ${subtotal.toFixed(2)}`;
-            totalGeneral += subtotal;
-        });
-
-        document.getElementById('total-general').innerText = totalGeneral.toFixed(2);
-    }
-
-    document.addEventListener('input', event => {
-        if (event.target.matches('.cantidad-input, .costo-input')) {
-            calcularTotales();
-        }
-    });
-
-    document.addEventListener('change', event => {
-        if (event.target.matches('.producto-search-input')) {
-            event.target.closest('.producto-item').querySelector('.producto-id-input').value = '';
-        }
-    });
-
-    document.addEventListener('input', event => {
-        if (!event.target.matches('.producto-search-input')) {
-            return;
-        }
-
-        const input = event.target;
-        const row = input.closest('.producto-item');
-        row.querySelector('.producto-id-input').value = '';
-        row.querySelector('.producto-seleccionado').textContent = 'Sin producto seleccionado';
-
+    buscarProductoInput.addEventListener('input', () => {
+        const term = buscarProductoInput.value.trim();
         clearTimeout(productSearchTimeout);
 
-        if (input.value.trim().length < 2) {
-            renderProductoSugerencias(input, [], 'Escribe al menos 2 caracteres.');
+        if (!term.length) {
+            cerrarResultados();
+            setEstado('');
             return;
         }
 
-        productSearchTimeout = setTimeout(() => {
-            buscarProductoCompra(input);
-        }, 250);
+        if (term.length < 2 && !/^\d+$/.test(term)) {
+            renderResultados([], 'Escribe al menos 2 caracteres.');
+            return;
+        }
+
+        const normalizedTerm = normalize(term);
+
+        if (searchCache.has(normalizedTerm)) {
+            renderResultados(searchCache.get(normalizedTerm));
+            return;
+        }
+
+        productSearchTimeout = setTimeout(() => buscarProductos(term), 120);
+    });
+
+    resultadosCompra.addEventListener('click', event => {
+        const option = event.target.closest('[data-producto-option]');
+
+        if (!option) {
+            return;
+        }
+
+        agregarProducto({
+            id: option.dataset.id,
+            nombre: option.dataset.nombre,
+            codigo_barra: option.dataset.codigo,
+            costo: parseFloat(option.dataset.costo || 0),
+        });
+    });
+
+    productosBody.addEventListener('input', event => {
+        const row = event.target.closest('[data-row-id]');
+
+        if (!row) {
+            return;
+        }
+
+        const item = productosSeleccionados.find(producto => producto.rowId === row.dataset.rowId);
+
+        if (!item) {
+            return;
+        }
+
+        if (event.target.matches('[data-cantidad]')) {
+            item.cantidad = Math.max(1, parseInt(event.target.value || 1, 10));
+        }
+
+        if (event.target.matches('[data-costo]')) {
+            item.costo = Math.max(0, parseFloat(event.target.value || 0));
+        }
+
+        if (event.target.matches('[data-vencimiento]')) {
+            item.fecha_vencimiento = event.target.value;
+        }
+
+        recalcularTotalesCompra();
+    });
+
+    productosBody.addEventListener('click', event => {
+        const removeButton = event.target.closest('[data-remove-row]');
+
+        if (!removeButton) {
+            return;
+        }
+
+        const index = productosSeleccionados.findIndex(producto => producto.rowId === removeButton.dataset.removeRow);
+
+        if (index >= 0) {
+            productosSeleccionados.splice(index, 1);
+            renderProductosSeleccionados();
+        }
     });
 
     document.addEventListener('click', event => {
-        if (event.target.matches('.remover-fila')) {
-            event.target.closest('.producto-item').remove();
-            renumerarFilas();
-            calcularTotales();
-        }
-
-        const suggestion = event.target.closest('.producto-suggestion');
-
-        if (suggestion) {
-            const row = suggestion.closest('.producto-item');
-            const input = row.querySelector('.producto-search-input');
-            const productIdInput = row.querySelector('.producto-id-input');
-            const costoInput = row.querySelector('.costo-input');
-            const selectedText = row.querySelector('.producto-seleccionado');
-
-            input.value = suggestion.dataset.nombre;
-            productIdInput.value = suggestion.dataset.id;
-            selectedText.textContent = `Codigo: ${suggestion.dataset.codigo || 'N/A'}`;
-
-            if (parseFloat(costoInput.value || 0) <= 0) {
-                costoInput.value = parseFloat(suggestion.dataset.costo || 0).toFixed(2);
-            }
-
-            row.querySelector('.producto-suggestions').classList.add('hidden');
-            calcularTotales();
+        if (!event.target.closest('#productos-resultados-compra') && event.target !== buscarProductoInput) {
+            cerrarResultados();
         }
     });
 
-    async function buscarProductoCompra(input) {
+    async function buscarProductos(term) {
         productSearchController?.abort();
         productSearchController = new AbortController();
+        setEstado('Buscando productos...');
 
         try {
             const url = new URL(buscarProductosUrl, window.location.origin);
-            url.searchParams.set('q', input.value.trim());
-
-            mostrarEstadoSugerencias(input, 'Buscando productos...');
+            url.searchParams.set('q', term);
 
             const response = await fetch(url, {
                 headers: {
@@ -351,63 +311,141 @@
                 throw new Error('No se pudo buscar productos.');
             }
 
-            renderProductoSugerencias(input, await response.json());
+            const productos = await response.json();
+            searchCache.set(normalize(term), productos);
+            renderResultados(productos);
+            setEstado('');
         } catch (error) {
             if (error.name !== 'AbortError') {
-                renderProductoSugerencias(input, [], 'No se pudo completar la busqueda.');
+                renderResultados([], 'No se pudo completar la busqueda.');
             }
         }
     }
 
-    function mostrarEstadoSugerencias(input, mensaje) {
-        const suggestions = input.closest('.producto-item').querySelector('.producto-suggestions');
-        const currentItems = suggestions.querySelectorAll('.producto-suggestion').length;
-
-        suggestions.classList.remove('hidden');
-
-        if (!currentItems) {
-            suggestions.innerHTML = `<div class="p-3 text-sm text-gray-500">${escapeHtml(mensaje)}</div>`;
-            return;
-        }
-
-        let status = suggestions.querySelector('[data-suggestion-status]');
-
-        if (!status) {
-            status = document.createElement('div');
-            status.dataset.suggestionStatus = 'true';
-            status.className = 'border-t bg-gray-50 px-3 py-2 text-xs text-gray-500';
-            suggestions.appendChild(status);
-        }
-
-        status.textContent = mensaje;
-    }
-
-    function renderProductoSugerencias(input, productos, mensaje = 'No hay coincidencias.') {
-        const suggestions = input.closest('.producto-item').querySelector('.producto-suggestions');
-
-        suggestions.innerHTML = '';
-        suggestions.classList.remove('hidden');
+    function renderResultados(productos, mensaje = 'No hay coincidencias.') {
+        resultadosCompra.innerHTML = '';
+        resultadosCompra.classList.remove('hidden');
 
         if (!productos.length) {
-            suggestions.innerHTML = `<div class="p-3 text-sm text-gray-500">${escapeHtml(mensaje)}</div>`;
+            resultadosCompra.innerHTML = `<div class="p-3 text-sm text-gray-500">${escapeHtml(mensaje)}</div>`;
             return;
         }
 
         productos.forEach(producto => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = 'producto-suggestion block w-full px-3 py-2 text-left text-sm hover:bg-blue-50';
+            button.className = 'grid w-full grid-cols-[minmax(0,1fr)_110px] gap-3 px-3 py-2 text-left hover:bg-blue-50';
+            button.dataset.productoOption = 'true';
             button.dataset.id = producto.id;
             button.dataset.nombre = producto.nombre;
             button.dataset.codigo = producto.codigo_barra;
             button.dataset.costo = producto.costo;
             button.innerHTML = `
-                <div class="font-semibold text-gray-800">${escapeHtml(producto.nombre)}</div>
-                <div class="text-xs text-gray-500">Código: ${escapeHtml(producto.codigo_barra)} | Costo: Q ${Number(producto.costo).toFixed(2)}</div>
+                <div class="min-w-0">
+                    <div class="truncate font-semibold text-gray-900">${escapeHtml(producto.nombre)}</div>
+                    <div class="text-xs text-gray-500">Codigo: ${escapeHtml(producto.codigo_barra)}</div>
+                </div>
+                <div class="text-right font-bold text-green-700">Q ${Number(producto.costo).toFixed(2)}</div>
             `;
 
-            suggestions.appendChild(button);
+            resultadosCompra.appendChild(button);
         });
+    }
+
+    function agregarProducto(producto) {
+        const existente = productosSeleccionados.find(item => item.id === producto.id);
+
+        if (existente) {
+            existente.cantidad++;
+        } else {
+            productosSeleccionados.push({
+                rowId: String(nextRowId++),
+                id: producto.id,
+                nombre: producto.nombre,
+                codigo_barra: producto.codigo_barra,
+                cantidad: 1,
+                costo: producto.costo > 0 ? producto.costo : 0,
+                fecha_vencimiento: '',
+            });
+        }
+
+        buscarProductoInput.value = '';
+        cerrarResultados();
+        setEstado('');
+        renderProductosSeleccionados();
+        buscarProductoInput.focus();
+    }
+
+    function renderProductosSeleccionados() {
+        productosBody.innerHTML = '';
+        let total = 0;
+
+        productosSeleccionados.forEach((item, position) => {
+            const subtotal = item.cantidad * item.costo;
+            total += subtotal;
+
+            const row = document.createElement('tr');
+            row.dataset.rowId = item.rowId;
+            row.innerHTML = `
+                <td class="border p-2 text-center">${position + 1}</td>
+                <td class="border p-2">
+                    <input type="hidden" name="productos[${position}][producto_id]" value="${escapeHtml(item.id)}">
+                    <div class="font-semibold text-gray-900">${escapeHtml(item.nombre)}</div>
+                    <div class="text-xs text-gray-500">Codigo: ${escapeHtml(item.codigo_barra)}</div>
+                </td>
+                <td class="border p-2">
+                    <input type="number" min="1" name="productos[${position}][cantidad]" value="${item.cantidad}" data-cantidad class="w-full rounded border-gray-300 text-right">
+                </td>
+                <td class="border p-2">
+                    <input type="number" step="0.01" min="0.01" name="productos[${position}][costo]" value="${Number(item.costo).toFixed(2)}" data-costo class="w-full rounded border-gray-300 text-right">
+                </td>
+                <td class="border p-2">
+                    <input type="date" name="productos[${position}][fecha_vencimiento]" value="${escapeHtml(item.fecha_vencimiento)}" data-vencimiento class="w-full rounded border-gray-300">
+                </td>
+                <td class="border p-2 text-right font-bold" data-subtotal>Q ${subtotal.toFixed(2)}</td>
+                <td class="border p-2 text-center">
+                    <button type="button" data-remove-row="${item.rowId}" class="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
+                        Quitar
+                    </button>
+                </td>
+            `;
+
+            productosBody.appendChild(row);
+        });
+
+        lineasTotal.textContent = productosSeleccionados.length;
+        totalGeneral.textContent = total.toFixed(2);
+        sinProductos.classList.toggle('hidden', productosSeleccionados.length > 0);
+    }
+
+    function recalcularTotalesCompra() {
+        let total = 0;
+
+        productosSeleccionados.forEach(item => {
+            const subtotal = item.cantidad * item.costo;
+            total += subtotal;
+
+            const row = productosBody.querySelector(`[data-row-id="${item.rowId}"]`);
+
+            if (row) {
+                row.querySelector('[data-subtotal]').textContent = `Q ${subtotal.toFixed(2)}`;
+            }
+        });
+
+        totalGeneral.textContent = total.toFixed(2);
+    }
+
+    function cerrarResultados() {
+        resultadosCompra.classList.add('hidden');
+        resultadosCompra.innerHTML = '';
+    }
+
+    function setEstado(mensaje) {
+        estadoBusqueda.textContent = mensaje;
+    }
+
+    function normalize(value) {
+        return String(value ?? '').trim().toLowerCase();
     }
 
     function escapeHtml(value) {
@@ -418,16 +456,6 @@
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
     }
-
-    document.getElementById('agregar-producto').addEventListener('click', agregarFila);
-
-    document.getElementById('agregar-cinco').addEventListener('click', () => {
-        for (let i = 0; i < 5; i++) {
-            agregarFila();
-        }
-    });
-
-    agregarFila();
 </script>
 
 </x-app-layout>

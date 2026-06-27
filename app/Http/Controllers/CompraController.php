@@ -10,6 +10,7 @@ use App\Models\Inventario;
 use App\Models\MovimientoInventario;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class CompraController extends Controller
@@ -70,18 +71,25 @@ class CompraController extends Controller
     {
         $search = trim((string) $request->input('q', ''));
 
-        if ($search !== '' && mb_strlen($search) < 2) {
+        if ($search !== '' && mb_strlen($search) < 2 && ! ctype_digit($search)) {
             return response()->json([]);
         }
 
+        $sucursalId = (int) auth()->user()->sucursal_id;
+        $cacheKey = 'purchase_search:v1:'.$sucursalId.':'.md5(mb_strtolower($search));
+
         return response()->json(
-            $this->availableProductsForPurchase($search, 30)
-                ->map(fn ($producto) => [
-                    'id' => (string) $producto->id,
-                    'nombre' => $producto->nombre,
-                    'codigo_barra' => $producto->codigo_barra,
-                    'costo' => (float) $producto->costo,
-                ])
+            Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {
+                return $this->availableProductsForPurchase($search, 30)
+                    ->map(fn ($producto) => [
+                        'id' => (string) $producto->id,
+                        'nombre' => $producto->nombre,
+                        'codigo_barra' => $producto->codigo_barra,
+                        'costo' => (float) $producto->costo,
+                    ])
+                    ->values()
+                    ->all();
+            })
         );
     }
 
