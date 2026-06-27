@@ -9,6 +9,7 @@ use App\Models\DetalleVenta;
 use App\Models\MovimientoInventario;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Models\Caja;
@@ -52,11 +53,18 @@ class VentaController extends Controller
     {
         $search = trim((string) $request->input('q', ''));
 
-        if ($search !== '' && mb_strlen($search) < 2) {
+        if ($search !== '' && mb_strlen($search) < 2 && ! ctype_digit($search)) {
             return response()->json([]);
         }
 
-        return response()->json($this->availableProductsForSale($search, 30));
+        $sucursalId = (int) auth()->user()->sucursal_id;
+        $cacheKey = 'pos_search:v1:'.$sucursalId.':'.md5(mb_strtolower($search));
+
+        return response()->json(
+            Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {
+                return $this->availableProductsForSale($search, 30)->values()->all();
+            })
+        );
     }
 
     public function store(Request $request)

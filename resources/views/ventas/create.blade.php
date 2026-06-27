@@ -171,11 +171,16 @@
         const carritoVacio = document.getElementById('carrito-vacio');
         let searchTimeout;
         let searchController;
+        let searchRequestId = 0;
+        const searchCache = new Map();
+        const SEARCH_CACHE_LIMIT = 80;
 
         renderProductos(productosIniciales);
+        cacheSearch('', productosIniciales);
 
         buscarInput.addEventListener('input', function () {
             const texto = this.value.trim();
+            const normalizedText = normalizeSearch(texto);
 
             clearTimeout(searchTimeout);
 
@@ -186,15 +191,28 @@
                 return;
             }
 
-            if (texto.length < 2) {
+            if (texto.length < 2 && !isNumericSearch(texto)) {
                 searchController?.abort();
                 setSearchStatus('Escribe al menos 2 caracteres para buscar.');
                 return;
             }
 
+            if (searchCache.has(normalizedText)) {
+                renderProductos(searchCache.get(normalizedText));
+                setSearchStatus('');
+                return;
+            }
+
+            const nearestCachedResults = findNearestCachedResults(normalizedText);
+
+            if (nearestCachedResults) {
+                renderProductos(filterProductsLocally(nearestCachedResults, normalizedText));
+                setSearchStatus('Afinando resultados...');
+            }
+
             searchTimeout = setTimeout(() => {
                 buscarProductos(texto);
-            }, 250);
+            }, 120);
         });
 
         productosResultados.addEventListener('click', function (event) {
@@ -215,7 +233,12 @@
         async function buscarProductos(texto) {
             searchController?.abort();
             searchController = new AbortController();
-            setSearchStatus('Buscando productos...');
+            const requestId = ++searchRequestId;
+            const normalizedText = normalizeSearch(texto);
+
+            if (!searchCache.has(normalizedText)) {
+                setSearchStatus('Buscando productos...');
+            }
 
             try {
                 const url = new URL(buscarProductosUrl, window.location.origin);
@@ -233,7 +256,14 @@
                     throw new Error('No se pudo buscar productos.');
                 }
 
-                renderProductos(await response.json());
+                const productos = await response.json();
+
+                if (requestId !== searchRequestId) {
+                    return;
+                }
+
+                cacheSearch(normalizedText, productos);
+                renderProductos(productos);
                 setSearchStatus('');
             } catch (error) {
                 if (error.name !== 'AbortError') {
@@ -289,6 +319,51 @@
 
         function setSearchStatus(mensaje) {
             estadoBusquedaProducto.textContent = mensaje;
+        }
+
+        function normalizeSearch(value) {
+            return String(value ?? '').trim().toLowerCase();
+        }
+
+        function isNumericSearch(value) {
+            return /^\d+$/.test(String(value ?? '').trim());
+        }
+
+        function cacheSearch(query, productos) {
+            const normalizedQuery = normalizeSearch(query);
+
+            if (searchCache.has(normalizedQuery)) {
+                searchCache.delete(normalizedQuery);
+            }
+
+            searchCache.set(normalizedQuery, productos);
+
+            if (searchCache.size > SEARCH_CACHE_LIMIT) {
+                searchCache.delete(searchCache.keys().next().value);
+            }
+        }
+
+        function findNearestCachedResults(query) {
+            let nearestKey = '';
+            let nearestResults = null;
+
+            searchCache.forEach((productos, key) => {
+                if (key && query.startsWith(key) && key.length > nearestKey.length) {
+                    nearestKey = key;
+                    nearestResults = productos;
+                }
+            });
+
+            return nearestResults;
+        }
+
+        function filterProductsLocally(productos, query) {
+            return productos.filter(producto => {
+                const nombre = normalizeSearch(producto.nombre);
+                const codigo = normalizeSearch(producto.codigo_barra);
+
+                return nombre.includes(query) || codigo.includes(query);
+            });
         }
 
         function escapeHtml(value) {
