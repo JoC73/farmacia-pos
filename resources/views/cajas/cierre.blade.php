@@ -75,8 +75,12 @@
                                step="0.01"
                                min="0"
                                name="monto_cierre"
-                               value="{{ old('monto_cierre') }}"
+                               value="{{ old('monto_cierre', number_format($totalSistema, 2, '.', '')) }}"
                                class="w-full border-gray-300 rounded">
+
+                        <p class="mt-2 text-sm text-gray-500">
+                            El sistema sugiere Q {{ number_format($totalSistema, 2) }}. Si el efectivo contado es distinto, ajusta el monto y quedara registrada la diferencia.
+                        </p>
                     </div>
 
                     <div class="mb-4">

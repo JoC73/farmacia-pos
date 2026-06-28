@@ -12,7 +12,7 @@
                     <div>
                         <h3 class="text-lg font-bold text-gray-800">Registrar transferencia</h3>
                         <p class="text-sm text-gray-500">
-                            Registra efectivo enviado al jefe sin perder el control diario de caja.
+                            Registra efectivo enviado al jefe. El monto se descuenta del cierre y del saldo que se trasladara a la siguiente apertura.
                         </p>
                     </div>
 
@@ -45,8 +45,41 @@
                     </div>
 
                     <div class="p-4 bg-emerald-50 rounded">
-                        <div class="text-sm text-emerald-700">Efectivo disponible</div>
+                        <div class="text-sm text-emerald-700">Efectivo total disponible</div>
                         <div class="text-xl font-bold text-emerald-800">Q {{ number_format($disponible, 2) }}</div>
+                    </div>
+                </div>
+
+                <div class="mb-6 rounded border border-gray-200 overflow-hidden">
+                    <div class="bg-gray-50 px-4 py-3 font-bold text-gray-800">
+                        Composicion del efectivo disponible
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-5 text-sm">
+                        <div class="p-4 border-t sm:border-r">
+                            <div class="text-gray-500">Saldo inicial</div>
+                            <div class="font-bold">Q {{ number_format($resumen['apertura'], 2) }}</div>
+                        </div>
+
+                        <div class="p-4 border-t sm:border-r">
+                            <div class="text-gray-500">Ventas</div>
+                            <div class="font-bold text-emerald-700">+ Q {{ number_format($resumen['ventas'], 2) }}</div>
+                        </div>
+
+                        <div class="p-4 border-t sm:border-r">
+                            <div class="text-gray-500">Egresos</div>
+                            <div class="font-bold text-red-700">- Q {{ number_format($resumen['egresos'], 2) }}</div>
+                        </div>
+
+                        <div class="p-4 border-t sm:border-r">
+                            <div class="text-gray-500">Transferido</div>
+                            <div class="font-bold text-red-700">- Q {{ number_format($resumen['transferencias'], 2) }}</div>
+                        </div>
+
+                        <div class="p-4 border-t bg-emerald-50">
+                            <div class="text-emerald-700">Disponible</div>
+                            <div class="font-bold text-emerald-800">Q {{ number_format($resumen['disponible'], 2) }}</div>
+                        </div>
                     </div>
                 </div>
 

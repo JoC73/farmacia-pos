@@ -141,10 +141,7 @@ class CargaInicialProductoController extends Controller
                 $categoria = null;
 
                 if ($row['categoria']) {
-                    $categoria = Categoria::firstOrCreate(
-                        ['nombre' => $row['categoria']],
-                        ['estado' => true]
-                    );
+                    $categoria = $this->resolveCategory($row['categoria']);
                 }
 
                 $producto = $this->findExistingProduct($row['codigo_barra'], $row['nombre'], $row['laboratorio']);
@@ -422,6 +419,36 @@ class CargaInicialProductoController extends Controller
             ->orderByDesc('estado')
             ->orderBy('id')
             ->first();
+    }
+
+    private function resolveCategory(?string $name): ?Categoria
+    {
+        $displayName = Categoria::displayName($name);
+
+        if ($displayName === '') {
+            return null;
+        }
+
+        $normalizedName = Categoria::normalizeName($displayName);
+
+        $categoria = Categoria::where('nombre_normalizado', $normalizedName)
+            ->orderByDesc('estado')
+            ->orderBy('id')
+            ->first();
+
+        if ($categoria) {
+            if (!$categoria->estado) {
+                $categoria->update(['estado' => true]);
+            }
+
+            return $categoria;
+        }
+
+        return Categoria::create([
+            'nombre' => $displayName,
+            'nombre_normalizado' => $normalizedName,
+            'estado' => true,
+        ]);
     }
 
     private function productIdentityKey(string $nombre, ?string $laboratorio): string

@@ -78,7 +78,26 @@ class CajaController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        return view('cajas.apertura', compact('sucursales'));
+        $saldosSugeridos = $sucursales
+            ->mapWithKeys(function (Sucursal $sucursal) {
+                $ultimaCajaCerrada = $this->ultimaCajaCerrada($sucursal->id);
+
+                return [
+                    $sucursal->id => [
+                        'monto' => $ultimaCajaCerrada ? (float) $ultimaCajaCerrada->monto_cierre : 0,
+                        'tiene_historial' => (bool) $ultimaCajaCerrada,
+                        'caja_id' => $ultimaCajaCerrada?->id,
+                        'fecha_cierre' => optional($ultimaCajaCerrada?->fecha_cierre)
+                            ->timezone(config('app.timezone'))
+                            ->format('d/m/Y H:i'),
+                    ],
+                ];
+            })
+            ->all();
+
+        $puedeCorregirApertura = $this->canOverrideOpeningAmount($user);
+
+        return view('cajas.apertura', compact('sucursales', 'saldosSugeridos', 'puedeCorregirApertura'));
     }
 
     public function storeApertura(Request $request)
@@ -90,8 +109,7 @@ class CajaController extends Controller
 
     $request->validate([
 
-        'monto_apertura' => 'required|numeric|min:0',
-
+        'monto_apertura' => 'nullable|numeric|min:0',
         'sucursal_id' => $user->canViewAllSucursales()
             ? 'required|exists:sucursales,id'
             : 'nullable',
@@ -127,7 +145,23 @@ class CajaController extends Controller
             );
     }
 
-    DB::transaction(function () use ($request, $sucursalId, $user) {
+    $ultimaCajaCerrada = $this->ultimaCajaCerrada($sucursalId);
+    $montoSugerido = $ultimaCajaCerrada ? (float) $ultimaCajaCerrada->monto_cierre : 0.0;
+    $puedeCorregirApertura = $this->canOverrideOpeningAmount($user);
+
+    if ($ultimaCajaCerrada) {
+        $montoApertura = $puedeCorregirApertura
+            ? (float) $request->input('monto_apertura', $montoSugerido)
+            : $montoSugerido;
+    } else {
+        $montoApertura = (float) $request->input('monto_apertura', 0);
+    }
+
+    $aperturaCorregida = $ultimaCajaCerrada
+        && $puedeCorregirApertura
+        && abs($montoApertura - $montoSugerido) > 0.009;
+
+    DB::transaction(function () use ($sucursalId, $user, $montoApertura, $ultimaCajaCerrada, $montoSugerido, $aperturaCorregida) {
 
         $caja = Caja::create([
 
@@ -135,7 +169,7 @@ class CajaController extends Controller
 
             'user_id' => $user->id,
 
-            'monto_apertura' => $request->monto_apertura,
+            'monto_apertura' => $montoApertura,
 
             'fecha_apertura' => now(),
 
@@ -151,16 +185,22 @@ class CajaController extends Controller
 
             'tipo' => 'APERTURA',
 
-            'monto' => $request->monto_apertura,
+            'monto' => $montoApertura,
 
-            'descripcion' => 'Apertura de caja',
+            'referencia' => $ultimaCajaCerrada
+                ? 'Saldo trasladado de caja #' . $ultimaCajaCerrada->id
+                : null,
+
+            'descripcion' => $aperturaCorregida
+                ? 'Apertura corregida manualmente. Saldo sugerido: Q ' . number_format($montoSugerido, 2)
+                : 'Apertura de caja',
 
         ]);
     });
 
     return redirect()
         ->route('cajas.index')
-        ->with('success', 'Caja abierta correctamente.');
+        ->with('success', 'Caja abierta correctamente con saldo inicial de Q ' . number_format($montoApertura, 2) . '.');
 }
 
     public function createCierre(Caja $caja)
@@ -295,9 +335,10 @@ class CajaController extends Controller
     {
         $this->validarCajaParaTransferencia($caja);
 
-        $disponible = $this->efectivoDisponible($caja);
+        $resumen = $this->resumenCaja($caja);
+        $disponible = $resumen['disponible'];
 
-        return view('cajas.transferencia', compact('caja', 'disponible'));
+        return view('cajas.transferencia', compact('caja', 'disponible', 'resumen'));
     }
 
     public function storeTransferencia(Request $request, Caja $caja)
@@ -407,9 +448,40 @@ class CajaController extends Controller
 
     private function efectivoDisponible(Caja $caja): float
     {
-        return (float) $caja->monto_apertura
-            + $this->ventasRegistradas($caja)
-            - $this->salidasRegistradas($caja);
+        return $this->resumenCaja($caja)['disponible'];
+    }
+
+    private function resumenCaja(Caja $caja): array
+    {
+        $apertura = (float) $caja->monto_apertura;
+        $ventas = $this->ventasRegistradas($caja);
+        $egresos = $this->egresosRegistrados($caja);
+        $transferencias = $this->transferenciasRegistradas($caja);
+        $salidas = $egresos + $transferencias;
+
+        return [
+            'apertura' => $apertura,
+            'ventas' => $ventas,
+            'egresos' => $egresos,
+            'transferencias' => $transferencias,
+            'salidas' => $salidas,
+            'disponible' => $apertura + $ventas - $salidas,
+        ];
+    }
+
+    private function ultimaCajaCerrada(int $sucursalId): ?Caja
+    {
+        return Caja::where('sucursal_id', $sucursalId)
+            ->where('estado', 'CERRADA')
+            ->whereNotNull('monto_cierre')
+            ->latest('fecha_cierre')
+            ->latest('id')
+            ->first();
+    }
+
+    private function canOverrideOpeningAmount($user): bool
+    {
+        return $user->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']);
     }
 
     private function authorizeSucursalAccess(Caja $caja): void

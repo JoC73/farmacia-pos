@@ -22,12 +22,22 @@ class CategoriaController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nombre' => 'required|string|max:120|unique:categorias,nombre',
+            'nombre' => 'required|string|max:120',
             'descripcion' => 'nullable|string',
         ]);
 
+        $nombre = Categoria::displayName($request->nombre);
+        $nombreNormalizado = Categoria::normalizeName($nombre);
+
+        if ($this->categoryNameExists($nombreNormalizado)) {
+            return back()
+                ->withErrors(['nombre' => 'Ya existe una categoría con ese nombre o una variante equivalente.'])
+                ->withInput();
+        }
+
         Categoria::create([
-            'nombre' => $request->nombre,
+            'nombre' => $nombre,
+            'nombre_normalizado' => $nombreNormalizado,
             'descripcion' => $request->descripcion,
             'estado' => true,
         ]);
@@ -50,13 +60,23 @@ class CategoriaController extends Controller
     public function update(Request $request, Categoria $categoria)
     {
         $request->validate([
-            'nombre' => 'required|string|max:120|unique:categorias,nombre,' . $categoria->id,
+            'nombre' => 'required|string|max:120',
             'descripcion' => 'nullable|string',
             'estado' => 'nullable|boolean',
         ]);
 
+        $nombre = Categoria::displayName($request->nombre);
+        $nombreNormalizado = Categoria::normalizeName($nombre);
+
+        if ($this->categoryNameExists($nombreNormalizado, $categoria->id)) {
+            return back()
+                ->withErrors(['nombre' => 'Ya existe una categoría con ese nombre o una variante equivalente.'])
+                ->withInput();
+        }
+
         $categoria->update([
-            'nombre' => $request->nombre,
+            'nombre' => $nombre,
+            'nombre_normalizado' => $nombreNormalizado,
             'descripcion' => $request->descripcion,
             'estado' => $request->has('estado'),
         ]);
@@ -75,5 +95,12 @@ class CategoriaController extends Controller
         return redirect()
             ->route('categorias.index')
             ->with('success', 'Categoría desactivada correctamente.');
+    }
+
+    private function categoryNameExists(string $normalizedName, ?int $exceptId = null): bool
+    {
+        return Categoria::where('nombre_normalizado', $normalizedName)
+            ->when($exceptId, fn ($query) => $query->whereKeyNot($exceptId))
+            ->exists();
     }
 }
