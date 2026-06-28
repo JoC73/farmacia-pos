@@ -19,8 +19,12 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_MEMORY_LIMIT=-1 \
+    COMPOSER_MAX_PARALLEL_HTTP=4
+
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+RUN composer install --no-dev --no-interaction --optimize-autoloader --no-scripts
 
 COPY . .
 RUN composer dump-autoload --optimize \
