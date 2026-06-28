@@ -380,6 +380,10 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/premium/modulos/{module}/toggle', [PremiumModuleController::class, 'toggle'])
         ->name('premium.toggle')
         ->middleware('role:Super Usuario');
+
+    Route::post('/premium/limpieza-sucursal', [PremiumModuleController::class, 'resetBranchProducts'])
+        ->name('premium.branch-cleanup')
+        ->middleware('role:Super Usuario');
 });
 
 });
