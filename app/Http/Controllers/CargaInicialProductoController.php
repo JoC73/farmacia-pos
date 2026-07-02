@@ -7,6 +7,8 @@ use App\Models\Inventario;
 use App\Models\MovimientoInventario;
 use App\Models\Producto;
 use App\Models\Sucursal;
+use DateTimeInterface;
+use InvalidArgumentException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -78,9 +80,18 @@ class CargaInicialProductoController extends Controller
         $sucursalIds = $this->normalizeSucursalIds($data['sucursal_ids']);
         $this->authorizeSucursalesAccess($sucursalIds);
 
-        [$previewRows, $importErrors] = $this->parseXlsx(
-            $request->file('archivo')->getRealPath()
-        );
+        try {
+            [$previewRows, $importErrors] = $this->parseXlsx(
+                $request->file('archivo')->getRealPath()
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $previewRows = collect();
+            $importErrors = collect([
+                'No se pudo leer el archivo Excel. Verifica que uses la plantilla oficial y que las fechas esten en formato valido.',
+            ]);
+        }
 
         $previewToken = null;
 
@@ -259,7 +270,11 @@ class CargaInicialProductoController extends Controller
                     continue;
                 }
 
-                $this->addPreviewRow($row, $line, $previewRows, $errors, $codesInFile, $identitiesInFile, $productLookup);
+                try {
+                    $this->addPreviewRow($row, $line, $previewRows, $errors, $codesInFile, $identitiesInFile, $productLookup);
+                } catch (InvalidArgumentException $exception) {
+                    $errors->push("Linea {$line}: {$exception->getMessage()}");
+                }
             }
 
             break;
@@ -280,12 +295,17 @@ class CargaInicialProductoController extends Controller
 
     private function addPreviewRow(array $row, int $line, $previewRows, $errors, array &$codesInFile, array &$identitiesInFile, array $productLookup): void
     {
-        $nombre = trim((string) ($row['nombre'] ?? ''));
-        $codigo = trim((string) ($row['codigo_barra'] ?? ''));
-        $existencia = trim((string) ($row['existencia_inicial'] ?? ''));
+        $nombre = $this->textValue($row['nombre'] ?? '');
+        $codigo = $this->textValue($row['codigo_barra'] ?? '');
+        $existencia = $this->integerTextValue($row['existencia_inicial'] ?? '');
 
         if ($nombre === '') {
             $errors->push("Linea {$line}: el nombre es obligatorio.");
+            return;
+        }
+
+        if (Str::length($nombre) > 200) {
+            $errors->push("Linea {$line}: el nombre no puede superar 200 caracteres.");
             return;
         }
 
@@ -296,7 +316,7 @@ class CargaInicialProductoController extends Controller
 
         $costo = $this->numberValue($row['costo'] ?? 0);
         $precio = $this->numberValue($row['precio_venta'] ?? 0);
-        $stockMinimo = trim((string) ($row['stock_minimo'] ?? '5'));
+        $stockMinimo = $this->integerTextValue($row['stock_minimo'] ?? '5');
 
         if ($costo < 0 || $precio < 0) {
             $errors->push("Linea {$line}: costo y precio_venta no pueden ser negativos.");
@@ -316,7 +336,7 @@ class CargaInicialProductoController extends Controller
 
             $codesInFile[$codigo] = true;
         } else {
-            $identity = $this->productIdentityKey($nombre, (string) ($row['laboratorio'] ?? ''));
+            $identity = $this->productIdentityKey($nombre, $this->textValue($row['laboratorio'] ?? ''));
 
             if (isset($identitiesInFile[$identity])) {
                 $errors->push("Linea {$line}: producto duplicado dentro del archivo sin codigo_barra.");
@@ -326,21 +346,36 @@ class CargaInicialProductoController extends Controller
             $identitiesInFile[$identity] = true;
         }
 
-        $productoExistente = $this->findExistingProductFromLookup($productLookup, $codigo, $nombre, (string) ($row['laboratorio'] ?? ''));
+        $categoria = $this->textValue($row['categoria'] ?? '');
+        $laboratorio = $this->textValue($row['laboratorio'] ?? '');
+        $descripcion = $this->textValue($row['descripcion'] ?? '');
+        $fechaVencimiento = $this->dateValue($row['fecha_vencimiento'] ?? null);
+
+        if (Str::length($categoria) > 120) {
+            $errors->push("Linea {$line}: la categoria no puede superar 120 caracteres.");
+            return;
+        }
+
+        if (Str::length($laboratorio) > 150) {
+            $errors->push("Linea {$line}: el laboratorio no puede superar 150 caracteres.");
+            return;
+        }
+
+        $productoExistente = $this->findExistingProductFromLookup($productLookup, $codigo, $nombre, $laboratorio);
 
         $previewRows->push([
             'codigo_barra' => $productoExistente?->codigo_barra ?? $codigo,
             'codigo_generado' => $codigo === '' && ! $productoExistente,
             'accion' => $productoExistente ? 'Actualizar' : 'Crear',
             'nombre' => $nombre,
-            'categoria' => trim((string) ($row['categoria'] ?? '')),
-            'laboratorio' => trim((string) ($row['laboratorio'] ?? '')),
+            'categoria' => $categoria,
+            'laboratorio' => $laboratorio,
             'costo' => $costo,
             'precio_venta' => $precio,
             'stock_minimo' => (int) $stockMinimo,
-            'fecha_vencimiento' => $this->dateValue($row['fecha_vencimiento'] ?? null),
+            'fecha_vencimiento' => $fechaVencimiento,
             'existencia_inicial' => (int) $existencia,
-            'descripcion' => trim((string) ($row['descripcion'] ?? '')),
+            'descripcion' => $descripcion,
         ]);
     }
 
@@ -489,7 +524,7 @@ class CargaInicialProductoController extends Controller
     private function isEmptyRow(array $row): bool
     {
         return collect($row)
-            ->filter(fn ($value) => trim((string) $value) !== '')
+            ->filter(fn ($value) => $this->textValue($value) !== '')
             ->isEmpty();
     }
 
@@ -499,18 +534,89 @@ class CargaInicialProductoController extends Controller
             return 0;
         }
 
-        return (float) str_replace(',', '.', (string) $value);
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        $value = $this->textValue($value);
+
+        if ($value === '') {
+            return 0;
+        }
+
+        $value = str_replace(['Q', 'q', ' '], '', $value);
+        $value = str_replace(',', '.', $value);
+
+        if (!is_numeric($value)) {
+            throw new InvalidArgumentException('costo y precio_venta deben ser numeros validos.');
+        }
+
+        return (float) $value;
     }
 
     private function dateValue($value): ?string
     {
-        $value = trim((string) $value);
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_int($value) || is_float($value)) {
+            if ($value <= 0) {
+                return null;
+            }
+
+            return now()
+                ->setDate(1899, 12, 30)
+                ->startOfDay()
+                ->addDays((int) $value)
+                ->format('Y-m-d');
+        }
+
+        $value = $this->textValue($value);
 
         if ($value === '') {
             return null;
         }
 
-        return $value;
+        $formats = ['Y-m-d', 'd/m/Y', 'd-m-Y', 'm/d/Y'];
+
+        foreach ($formats as $format) {
+            $date = \DateTimeImmutable::createFromFormat('!' . $format, $value);
+
+            if ($date && $date->format($format) === $value) {
+                return $date->format('Y-m-d');
+            }
+        }
+
+        throw new InvalidArgumentException('fecha_vencimiento debe tener formato YYYY-MM-DD o DD/MM/YYYY.');
+    }
+
+    private function textValue($value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return Str::of((string) $value)
+            ->squish()
+            ->toString();
+    }
+
+    private function integerTextValue($value): string
+    {
+        if (is_int($value)) {
+            return (string) $value;
+        }
+
+        if (is_float($value) && floor($value) === $value) {
+            return (string) (int) $value;
+        }
+
+        return $this->textValue($value);
     }
 
     private function sucursales()
