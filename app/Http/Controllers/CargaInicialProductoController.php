@@ -309,7 +309,11 @@ class CargaInicialProductoController extends Controller
             return;
         }
 
-        if ($existencia === '' || !ctype_digit($existencia)) {
+        if ($existencia === '') {
+            $existencia = '0';
+        }
+
+        if (!ctype_digit($existencia)) {
             $errors->push("Linea {$line}: existencia_inicial debe ser un numero entero mayor o igual a 0.");
             return;
         }
