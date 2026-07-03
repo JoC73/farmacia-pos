@@ -138,6 +138,7 @@
                                     <th class="p-2 border text-right">Costo</th>
                                     <th class="p-2 border text-right">Precio</th>
                                     <th class="p-2 border text-right">Stock min.</th>
+                                    <th class="p-2 border text-center">Vence</th>
                                     <th class="p-2 border text-right">Existencia</th>
                                 </tr>
                             </thead>
@@ -159,6 +160,9 @@
                                         <td class="p-2 border text-right">Q {{ number_format($row['costo'], 2) }}</td>
                                         <td class="p-2 border text-right">Q {{ number_format($row['precio_venta'], 2) }}</td>
                                         <td class="p-2 border text-right">{{ $row['stock_minimo'] }}</td>
+                                        <td class="p-2 border text-center">
+                                            {{ $row['fecha_vencimiento'] ? \Carbon\Carbon::parse($row['fecha_vencimiento'])->format('d/m/Y') : 'Sin fecha' }}
+                                        </td>
                                         <td class="p-2 border text-right font-semibold">{{ $row['existencia_inicial'] }}</td>
                                     </tr>
                                 @endforeach
