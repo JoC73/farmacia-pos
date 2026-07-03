@@ -24,6 +24,16 @@ class CajaController extends Controller
         ->latest()
         ->paginate(20);
 
+        $cajaAbiertaActual = null;
+
+        if ($sucursalId) {
+            $cajaAbiertaActual = Caja::with(['usuario', 'sucursal'])
+                ->where('sucursal_id', $sucursalId)
+                ->where('estado', 'ABIERTA')
+                ->latest()
+                ->first();
+        }
+
         $transferencias = collect();
         $totalTransferenciasMes = 0;
 
@@ -52,7 +62,8 @@ class CajaController extends Controller
         return view('cajas.index', compact(
             'cajas',
             'transferencias',
-            'totalTransferenciasMes'
+            'totalTransferenciasMes',
+            'cajaAbiertaActual'
         ));
     }
 
@@ -61,15 +72,22 @@ class CajaController extends Controller
         $user = auth()->user();
         $sucursalId = $user->visibleSucursalId();
 
+        if (! $user->canViewAllSucursales() && ! $sucursalId) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('error', 'Tu usuario no tiene sucursal asignada. Un administrador debe editar tu usuario antes de abrir caja.');
+        }
+
         if ($sucursalId) {
             $cajaAbierta = Caja::where('sucursal_id', $sucursalId)
                 ->where('estado', 'ABIERTA')
-                ->exists();
+                ->latest()
+                ->first();
 
             if ($cajaAbierta) {
                 return redirect()
                     ->route('cajas.index')
-                    ->with('error', 'Esta sucursal ya tiene una caja abierta.');
+                    ->with('success', 'Esta sucursal ya tiene una caja abierta. Puedes continuar usando la caja #' . $cajaAbierta->id . '.');
             }
         }
 
@@ -122,7 +140,7 @@ class CajaController extends Controller
         return redirect()
             ->back()
             ->withInput()
-            ->with('error', 'No se pudo determinar la sucursal para abrir caja.');
+            ->with('error', 'No se pudo determinar la sucursal para abrir caja. Verifica que el usuario tenga una sucursal asignada.');
     }
 
     /*
@@ -140,8 +158,8 @@ class CajaController extends Controller
         return redirect()
             ->route('cajas.index')
             ->with(
-                'error',
-                'Esta sucursal ya tiene una caja abierta. Debes cerrarla antes de abrir otra.'
+                'success',
+                'Esta sucursal ya tiene una caja abierta. Puedes continuar usando la caja existente.'
             );
     }
 

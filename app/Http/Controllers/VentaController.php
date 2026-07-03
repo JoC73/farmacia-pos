@@ -37,6 +37,17 @@ class VentaController extends Controller
 
     public function create()
     {
+        $user = auth()->user();
+        $cajaAbierta = null;
+
+        if ($user->sucursal_id) {
+            $cajaAbierta = Caja::with(['usuario', 'sucursal'])
+                ->where('sucursal_id', $user->sucursal_id)
+                ->where('estado', 'ABIERTA')
+                ->latest()
+                ->first();
+        }
+
         $productos = $this->availableProductsForSale('', 18);
 
         $clientes = Cliente::where('estado', true)
@@ -45,7 +56,8 @@ class VentaController extends Controller
 
         return view('ventas.create', compact(
             'productos',
-            'clientes'
+            'clientes',
+            'cajaAbierta'
         ));
     }
 

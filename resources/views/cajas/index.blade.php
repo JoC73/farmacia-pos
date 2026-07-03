@@ -21,11 +21,39 @@
             @endif
 
             <div class="mb-4">
-                <a href="{{ route('cajas.apertura') }}"
-                   class="px-4 py-2 rounded"
-                   style="background-color: green; color: white;">
-                    Abrir Caja
-                </a>
+                @if($cajaAbiertaActual)
+                    <div class="bg-emerald-50 border border-emerald-200 rounded p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <div>
+                            <div class="font-bold text-emerald-800">
+                                Caja abierta en tu sucursal
+                            </div>
+                            <div class="text-sm text-emerald-700">
+                                Caja #{{ $cajaAbiertaActual->id }} abierta por {{ $cajaAbiertaActual->usuario->name ?? '-' }}
+                                con Q {{ number_format($cajaAbiertaActual->monto_apertura, 2) }}.
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <a href="{{ route('ventas.create') }}"
+                               class="px-4 py-2 rounded text-white"
+                               style="background-color: #2563eb;">
+                                Ir a Ventas
+                            </a>
+
+                            <a href="{{ route('cajas.show', $cajaAbiertaActual) }}"
+                               class="px-4 py-2 rounded text-white"
+                               style="background-color: #047857;">
+                                Ver Caja
+                            </a>
+                        </div>
+                    </div>
+                @else
+                    <a href="{{ route('cajas.apertura') }}"
+                       class="px-4 py-2 rounded"
+                       style="background-color: green; color: white;">
+                        Abrir Caja
+                    </a>
+                @endif
             </div>
 
             @can('caja.ver_cierres')

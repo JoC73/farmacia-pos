@@ -32,6 +32,29 @@
                 </div>
             @endif
 
+            @if($cajaAbierta)
+                <div class="mb-4 rounded border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    <strong>Caja activa:</strong>
+                    #{{ $cajaAbierta->id }} en {{ $cajaAbierta->sucursal->nombre ?? 'tu sucursal' }},
+                    abierta por {{ $cajaAbierta->usuario->name ?? '-' }}.
+                </div>
+            @else
+                <div class="mb-4 rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <strong>No hay caja abierta para tu sucursal.</strong>
+                        Debes abrir caja antes de registrar ventas.
+                    </div>
+
+                    @can('caja.abrir')
+                        <a href="{{ route('cajas.apertura') }}"
+                           class="inline-flex justify-center rounded px-4 py-2 text-white"
+                           style="background-color: green;">
+                            Abrir Caja
+                        </a>
+                    @endcan
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('ventas.store') }}" id="form-venta">
                 @csrf
 
