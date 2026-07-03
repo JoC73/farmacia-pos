@@ -507,8 +507,44 @@ class CargaInicialProductoController extends Controller
     private function normalizeHeaders(array $headers): array
     {
         return collect($headers)
-            ->map(fn ($header) => Str::snake(Str::lower(trim((string) $header))))
+            ->map(function ($header) {
+                $normalized = Str::snake(Str::lower(Str::ascii(trim((string) $header))));
+
+                return $this->headerAliases()[$normalized] ?? $normalized;
+            })
             ->all();
+    }
+
+    private function headerAliases(): array
+    {
+        return [
+            'codigo' => 'codigo_barra',
+            'codigo_barra' => 'codigo_barra',
+            'codigo_de_barra' => 'codigo_barra',
+            'codigo_barras' => 'codigo_barra',
+            'codigo_de_barras' => 'codigo_barra',
+            'cod_barra' => 'codigo_barra',
+            'barra' => 'codigo_barra',
+
+            'categoria' => 'categoria',
+
+            'stock_minimo' => 'stock_minimo',
+            'stock_min' => 'stock_minimo',
+            'stock' => 'stock_minimo',
+
+            'fecha' => 'fecha_vencimiento',
+            'vence' => 'fecha_vencimiento',
+            'vencimiento' => 'fecha_vencimiento',
+            'fecha_vencimiento' => 'fecha_vencimiento',
+            'fecha_de_vencimiento' => 'fecha_vencimiento',
+
+            'existencia' => 'existencia_inicial',
+            'existencia_inicial' => 'existencia_inicial',
+            'existencia_actual' => 'existencia_inicial',
+
+            'presentacion' => 'descripcion',
+            'descripcion' => 'descripcion',
+        ];
     }
 
     private function validateHeaders(array $headers)
