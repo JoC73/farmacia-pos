@@ -628,7 +628,36 @@ class CargaInicialProductoController extends Controller
             }
         }
 
-        throw new InvalidArgumentException('fecha_vencimiento debe tener formato YYYY-MM-DD o DD/MM/YYYY.');
+        $normalizedOverflowDate = $this->normalizeOverflowDate($value);
+
+        if ($normalizedOverflowDate) {
+            return $normalizedOverflowDate;
+        }
+
+        throw new InvalidArgumentException('fecha_vencimiento debe tener formato YYYY-MM-DD, DD/MM/YYYY o MM/DD/YYYY.');
+    }
+
+    private function normalizeOverflowDate(string $value): ?string
+    {
+        if (!preg_match('/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/', $value, $matches)) {
+            return null;
+        }
+
+        $day = (int) $matches[1];
+        $month = (int) $matches[2];
+        $year = (int) $matches[3];
+
+        if ($month < 1 || $month > 12 || $day < 1) {
+            return null;
+        }
+
+        $lastDayOfMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+
+        if ($day <= $lastDayOfMonth) {
+            return null;
+        }
+
+        return sprintf('%04d-%02d-%02d', $year, $month, $lastDayOfMonth);
     }
 
     private function textValue($value): string
