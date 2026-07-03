@@ -105,9 +105,9 @@ class CajaController extends Controller
                         'monto' => $ultimaCajaCerrada ? (float) $ultimaCajaCerrada->monto_cierre : 0,
                         'tiene_historial' => (bool) $ultimaCajaCerrada,
                         'caja_id' => $ultimaCajaCerrada?->id,
-                        'fecha_cierre' => optional($ultimaCajaCerrada?->fecha_cierre)
-                            ->timezone(config('app.timezone'))
-                            ->format('d/m/Y H:i'),
+                        'fecha_cierre' => $ultimaCajaCerrada?->fecha_cierre
+                            ?->timezone(config('app.timezone'))
+                            ?->format('d/m/Y H:i'),
                     ],
                 ];
             })
