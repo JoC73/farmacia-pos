@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Producto;
 use App\Models\Categoria;
+use App\Models\Inventario;
+use App\Models\MovimientoInventario;
+use App\Models\Sucursal;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductoController extends Controller
 {
@@ -40,7 +44,8 @@ class ProductoController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $canManageGlobalProducts = auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']);
+        $canCreateProducts = $this->canCreateProducts();
+        $canManageGlobalProducts = $this->canManageGlobalProducts();
         $canAdjustLocalInventory = auth()->user()->hasRole('Administrador')
             && ! $canManageGlobalProducts
             && auth()->user()->can('inventario.ajustar')
@@ -49,6 +54,7 @@ class ProductoController extends Controller
         if ($request->ajax()) {
             return view('productos.partials.results', compact(
                 'productos',
+                'canCreateProducts',
                 'canManageGlobalProducts',
                 'canAdjustLocalInventory'
             ));
@@ -60,6 +66,7 @@ class ProductoController extends Controller
             'perPage',
             'search',
             'categoriaId',
+            'canCreateProducts',
             'canManageGlobalProducts',
             'canAdjustLocalInventory'
         ));
@@ -67,20 +74,31 @@ class ProductoController extends Controller
 
     public function create()
     {
-        $this->authorizeGlobalProductManagement();
+        $this->authorizeProductCreation();
 
         $categorias = Categoria::where('estado', true)
             ->orderBy('nombre')
             ->get();
 
-        return view('productos.create', compact('categorias'));
+        $canSelectSucursal = auth()->user()->canViewAllSucursales();
+        $sucursales = $canSelectSucursal
+            ? Sucursal::where('estado', true)->orderBy('nombre')->get()
+            : collect();
+        $selectedSucursal = $canSelectSucursal ? null : auth()->user()->sucursal;
+
+        return view('productos.create', compact(
+            'categorias',
+            'sucursales',
+            'canSelectSucursal',
+            'selectedSucursal'
+        ));
     }
 
     public function store(Request $request)
     {
-        $this->authorizeGlobalProductManagement();
+        $this->authorizeProductCreation();
 
-        $request->validate([
+        $rules = [
 
             'categoria_id' => 'nullable|exists:categorias,id',
 
@@ -100,35 +118,69 @@ class ProductoController extends Controller
 
             'descripcion' => 'nullable|string',
 
-        ]);
+            'existencia_inicial' => 'nullable|integer|min:0',
 
-        Producto::create([
+        ];
 
-            'categoria_id' => $request->categoria_id,
+        if (auth()->user()->canViewAllSucursales()) {
+            $rules['sucursal_id'] = 'required|exists:sucursales,id';
+        }
 
-            'codigo_barra' => $request->codigo_barra,
+        $data = $request->validate($rules);
+        $sucursal = $this->targetSucursalForCreation($request);
 
-            'nombre' => $request->nombre,
+        DB::transaction(function () use ($data, $sucursal) {
+            $producto = Producto::create([
 
-            'laboratorio' => $request->laboratorio,
+                'categoria_id' => $data['categoria_id'] ?? null,
 
-            'costo' => $request->costo,
+                'codigo_barra' => $data['codigo_barra'],
 
-            'precio_venta' => $request->precio_venta,
+                'nombre' => $data['nombre'],
 
-            'stock_minimo' => $request->stock_minimo,
+                'laboratorio' => $data['laboratorio'] ?? null,
 
-            'fecha_vencimiento' => $request->fecha_vencimiento,
+                'costo' => $data['costo'],
 
-            'descripcion' => $request->descripcion,
+                'precio_venta' => $data['precio_venta'],
 
-            'estado' => true,
+                'stock_minimo' => $data['stock_minimo'],
 
-        ]);
+                'fecha_vencimiento' => $data['fecha_vencimiento'] ?? null,
+
+                'descripcion' => $data['descripcion'] ?? null,
+
+                'estado' => true,
+
+            ]);
+
+            $existenciaInicial = (int) ($data['existencia_inicial'] ?? 0);
+
+            Inventario::create([
+                'producto_id' => $producto->id,
+                'sucursal_id' => $sucursal->id,
+                'existencia' => $existenciaInicial,
+                'fecha_vencimiento' => $data['fecha_vencimiento'] ?? null,
+            ]);
+
+            if ($existenciaInicial > 0) {
+                MovimientoInventario::create([
+                    'producto_id' => $producto->id,
+                    'sucursal_id' => $sucursal->id,
+                    'user_id' => auth()->id(),
+                    'tipo_movimiento' => 'AJUSTE_ENTRADA',
+                    'cantidad' => $existenciaInicial,
+                    'existencia_anterior' => 0,
+                    'existencia_nueva' => $existenciaInicial,
+                    'referencia' => 'Alta de producto',
+                    'observacion' => 'Producto creado y asignado a sucursal',
+                ]);
+            }
+        });
 
         return redirect()
             ->route('productos.index')
-            ->with('success', 'Producto creado correctamente.');
+            ->with('success', 'Producto creado y asignado a '.$sucursal->nombre.'.');
     }
 
     public function show(Producto $producto)
@@ -222,7 +274,34 @@ class ProductoController extends Controller
 
     private function authorizeGlobalProductManagement(): void
     {
-        abort_unless(auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']), 403);
+        abort_unless($this->canManageGlobalProducts(), 403);
+    }
+
+    private function authorizeProductCreation(): void
+    {
+        abort_unless($this->canCreateProducts(), 403);
+        abort_if(! auth()->user()->canViewAllSucursales() && ! auth()->user()->sucursal_id, 403);
+    }
+
+    private function canCreateProducts(): bool
+    {
+        return auth()->user()->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']);
+    }
+
+    private function canManageGlobalProducts(): bool
+    {
+        return auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']);
+    }
+
+    private function targetSucursalForCreation(Request $request): Sucursal
+    {
+        if (auth()->user()->canViewAllSucursales()) {
+            return Sucursal::where('estado', true)
+                ->findOrFail($request->integer('sucursal_id'));
+        }
+
+        return Sucursal::where('estado', true)
+            ->findOrFail(auth()->user()->sucursal_id);
     }
 
     private function validPerPage(int $perPage): int

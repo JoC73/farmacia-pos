@@ -16,7 +16,7 @@
 
             <div class="mb-4 flex flex-wrap gap-2">
 
-                @if($canManageGlobalProducts)
+                @if($canCreateProducts)
                     <a href="{{ route('productos.create') }}"
                        class="px-4 py-2 bg-blue-600 text-white rounded">
                         Nuevo Producto
@@ -101,6 +101,7 @@
             <div id="productos-results">
                 @include('productos.partials.results', [
                     'productos' => $productos,
+                    'canCreateProducts' => $canCreateProducts,
                     'canManageGlobalProducts' => $canManageGlobalProducts,
                     'canAdjustLocalInventory' => $canAdjustLocalInventory,
                 ])
