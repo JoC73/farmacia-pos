@@ -7,6 +7,9 @@ use App\Models\MovimientoInventario;
 use App\Models\Sucursal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 
 class InventarioController extends Controller
 {
@@ -52,6 +55,7 @@ class InventarioController extends Controller
             : collect();
 
         $canAdjustInventory = auth()->user()->hasAnyRole(['Administrador', 'Administrador Global', 'Super Usuario']);
+        $canDownloadBranchInventories = auth()->user()->hasRole('Super Usuario');
 
         if ($request->ajax()) {
             return view('inventarios.partials.results', compact(
@@ -67,8 +71,69 @@ class InventarioController extends Controller
             'estadoStock',
             'selectedSucursalId',
             'sucursales',
-            'canAdjustInventory'
+            'canAdjustInventory',
+            'canDownloadBranchInventories'
         ));
+    }
+
+    public function descargarSucursal(Sucursal $sucursal)
+    {
+        abort_unless(auth()->user()->hasRole('Super Usuario'), 403);
+        abort_unless($sucursal->estado, 404);
+
+        $inventarios = Inventario::with(['producto.categoria', 'sucursal'])
+            ->join('productos', 'inventarios.producto_id', '=', 'productos.id')
+            ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
+            ->select('inventarios.*')
+            ->where('inventarios.sucursal_id', $sucursal->id)
+            ->where('productos.estado', true)
+            ->orderByRaw("LOWER(COALESCE(NULLIF(inventarios.nombre_local, ''), productos.nombre))")
+            ->get();
+
+        $filename = 'inventario-' . Str::slug($sucursal->nombre) . '-' . now()->format('Ymd-His') . '.xlsx';
+        $path = storage_path('app/' . $filename);
+        $writer = new XlsxWriter();
+
+        $writer->openToFile($path);
+        $writer->addRow(Row::fromValues([
+            'sucursal',
+            'codigo_barra',
+            'nombre_sucursal',
+            'nombre_catalogo',
+            'categoria',
+            'laboratorio',
+            'costo',
+            'precio_venta',
+            'stock_minimo',
+            'existencia',
+            'fecha_vencimiento',
+        ]));
+
+        foreach ($inventarios as $inventario) {
+            $producto = $inventario->producto;
+
+            $writer->addRow(Row::fromValues([
+                $sucursal->nombre,
+                $producto?->codigo_barra,
+                $inventario->nombre_mostrado,
+                $producto?->nombre,
+                $producto?->categoria?->nombre ?? 'Sin categoria',
+                $producto?->laboratorio,
+                (float) ($producto?->costo ?? 0),
+                (float) ($producto?->precio_venta ?? 0),
+                (int) ($producto?->stock_minimo ?? 0),
+                (int) $inventario->existencia,
+                optional($inventario->fecha_vencimiento)->format('Y-m-d'),
+            ]));
+        }
+
+        $writer->close();
+
+        return response()
+            ->download($path, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend(true);
     }
 
     public function ajustar(Inventario $inventario)

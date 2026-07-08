@@ -35,6 +35,28 @@
                 @endcan
             </div>
 
+            @if($canDownloadBranchInventories && $sucursales->isNotEmpty())
+                <div class="mb-4 rounded border border-emerald-200 bg-white p-4 shadow">
+                    <div class="mb-3">
+                        <h3 class="font-bold text-gray-800">
+                            Descarga de inventarios por sucursal
+                        </h3>
+                        <p class="text-sm text-gray-500">
+                            Disponible solo para Super Usuario. Descarga un Excel independiente por sucursal.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        @foreach($sucursales as $sucursal)
+                            <a href="{{ route('inventarios.sucursales.descargar', $sucursal) }}"
+                               class="rounded bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                                Descargar {{ $sucursal->nombre }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <form method="GET"
                   action="{{ route('inventarios.index') }}"
                   class="mb-4 bg-white shadow rounded p-4"
@@ -208,16 +230,6 @@
                 loadResults();
             });
 
-            target?.addEventListener('click', event => {
-                const link = event.target.closest('[data-async-pagination] a');
-
-                if (!link) {
-                    return;
-                }
-
-                event.preventDefault();
-                loadResults(link.href);
-            });
         });
     </script>
 </x-app-layout>

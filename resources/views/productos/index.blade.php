@@ -247,14 +247,6 @@
                 loadResults();
             });
 
-            target?.addEventListener('click', event => {
-                const link = event.target.closest('[data-async-pagination] a');
-
-                if (link) {
-                    event.preventDefault();
-                    loadResults(link.href);
-                }
-            });
         });
 
         const expiryModal = document.getElementById('expiry-modal');

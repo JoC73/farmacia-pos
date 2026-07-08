@@ -79,6 +79,10 @@ Route::middleware('auth')->group(function () {
         ->name('inventarios.index')
         ->middleware('permission:inventario.ver');
 
+    Route::get('/inventarios/sucursales/{sucursal}/descargar', [InventarioController::class, 'descargarSucursal'])
+        ->name('inventarios.sucursales.descargar')
+        ->middleware(['permission:inventario.ver', 'role:Super Usuario']);
+
     Route::get('/inventarios/{inventario}/ajustar', [InventarioController::class, 'ajustar'])
         ->name('inventarios.ajustar')
         ->middleware(['permission:inventario.ajustar', 'role:Administrador|Administrador Global|Super Usuario']);
