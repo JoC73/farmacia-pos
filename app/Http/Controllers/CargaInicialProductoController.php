@@ -144,33 +144,23 @@ class CargaInicialProductoController extends Controller
         }
 
         $creados = 0;
-        $actualizados = 0;
+        $existentes = 0;
+        $inventariosActualizados = 0;
         $movimientos = 0;
 
-        DB::transaction(function () use ($rows, $sucursalIds, &$creados, &$actualizados, &$movimientos) {
+        DB::transaction(function () use ($rows, $sucursalIds, &$creados, &$existentes, &$inventariosActualizados, &$movimientos) {
             foreach ($rows as $row) {
-                $categoria = null;
-
-                if ($row['categoria']) {
-                    $categoria = $this->resolveCategory($row['categoria']);
-                }
-
                 $producto = $this->findExistingProduct($row['codigo_barra'], $row['nombre'], $row['laboratorio']);
 
                 if ($producto) {
-                    $producto->update([
-                        'categoria_id' => $categoria?->id,
-                        'nombre' => $row['nombre'],
-                        'laboratorio' => $row['laboratorio'],
-                        'costo' => $row['costo'],
-                        'precio_venta' => $row['precio_venta'],
-                        'stock_minimo' => $row['stock_minimo'],
-                        'fecha_vencimiento' => $row['fecha_vencimiento'],
-                        'descripcion' => $row['descripcion'],
-                        'estado' => true,
-                    ]);
-                    $actualizados++;
+                    $existentes++;
                 } else {
+                    $categoria = null;
+
+                    if ($row['categoria']) {
+                        $categoria = $this->resolveCategory($row['categoria']);
+                    }
+
                     $producto = Producto::create([
                         'categoria_id' => $categoria?->id,
                         'codigo_barra' => $row['codigo_barra'],
@@ -192,21 +182,30 @@ class CargaInicialProductoController extends Controller
                             'producto_id' => $producto->id,
                             'sucursal_id' => $sucursalId,
                         ],
-                        ['existencia' => 0]
+                        [
+                            'nombre_local' => $row['nombre'],
+                            'existencia' => 0,
+                        ]
                     );
 
                     $existenciaAnterior = (int) $inventario->existencia;
                     $existenciaNueva = (int) $row['existencia_inicial'];
+                    $nombreAnterior = trim((string) $inventario->nombre_local);
+                    $nombreNuevo = trim((string) $row['nombre']);
+                    $nombreCambio = $nombreAnterior !== $nombreNuevo;
 
                     $fechaAnterior = optional($inventario->fecha_vencimiento)->format('Y-m-d');
                     $fechaNueva = $row['fecha_vencimiento'];
                     $fechaCambio = $fechaAnterior !== $fechaNueva;
 
-                    if ($existenciaNueva !== $existenciaAnterior || $fechaCambio) {
+                    if ($existenciaNueva !== $existenciaAnterior || $fechaCambio || $nombreCambio) {
                         $inventario->update([
+                            'nombre_local' => $nombreNuevo,
                             'existencia' => $existenciaNueva,
                             'fecha_vencimiento' => $fechaNueva,
                         ]);
+
+                        $inventariosActualizados++;
                     }
 
                     if ($existenciaNueva !== $existenciaAnterior) {
@@ -231,7 +230,7 @@ class CargaInicialProductoController extends Controller
 
         return redirect()
             ->route('inventarios.index')
-            ->with('success', "Carga inicial aplicada en " . count($sucursalIds) . " sucursal(es). Productos creados: {$creados}. Actualizados: {$actualizados}. Movimientos: {$movimientos}.");
+            ->with('success', "Carga aplicada en " . count($sucursalIds) . " sucursal(es). Productos creados: {$creados}. Productos existentes reutilizados: {$existentes}. Inventarios actualizados: {$inventariosActualizados}. Movimientos: {$movimientos}.");
     }
 
     private function parseXlsx(string $path): array
@@ -370,8 +369,12 @@ class CargaInicialProductoController extends Controller
         $previewRows->push([
             'codigo_barra' => $productoExistente?->codigo_barra ?? $codigo,
             'codigo_generado' => $codigo === '' && ! $productoExistente,
-            'accion' => $productoExistente ? 'Actualizar' : 'Crear',
+            'accion' => $productoExistente ? 'Actualizar inventario' : 'Crear producto',
             'nombre' => $nombre,
+            'nombre_archivo' => $nombre,
+            'nombre_catalogo' => $productoExistente?->nombre,
+            'nombre_catalogo_diferente' => $productoExistente
+                && $this->productNameKey($productoExistente->nombre) !== $this->productNameKey($nombre),
             'categoria' => $categoria,
             'laboratorio' => $laboratorio,
             'costo' => $costo,
@@ -492,7 +495,12 @@ class CargaInicialProductoController extends Controller
 
     private function productIdentityKey(string $nombre, ?string $laboratorio): string
     {
-        return Str::lower(trim($nombre)) . '|' . Str::lower(trim((string) $laboratorio));
+        return $this->productNameKey($nombre) . '|' . Str::lower(trim((string) $laboratorio));
+    }
+
+    private function productNameKey(string $nombre): string
+    {
+        return Str::lower(trim($nombre));
     }
 
     private function nextInternalCodeNumber(): int

@@ -28,11 +28,22 @@ class ProductoController extends Controller
                 'inventarios',
                 fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
             ))
-            ->when($search !== '', fn ($query) => $query->where(function ($subquery) use ($search) {
+            ->when($search !== '', fn ($query) => $query->where(function ($subquery) use ($search, $sucursalId) {
                 $subquery
                     ->where('nombre', 'like', "%{$search}%")
                     ->orWhere('codigo_barra', 'like', "%{$search}%")
-                    ->orWhere('laboratorio', 'like', "%{$search}%")
+                    ->orWhere('laboratorio', 'like', "%{$search}%");
+
+                if ($sucursalId) {
+                    $subquery->orWhereHas(
+                        'inventarios',
+                        fn ($inventario) => $inventario
+                            ->where('sucursal_id', $sucursalId)
+                            ->where('nombre_local', 'like', "%{$search}%")
+                    );
+                }
+
+                $subquery
                     ->orWhereHas('categoria', fn ($categoria) => $categoria->where('nombre', 'like', "%{$search}%"));
             }))
             ->when($categoriaId, fn ($query) => $query->where('categoria_id', $categoriaId))
@@ -159,6 +170,7 @@ class ProductoController extends Controller
             Inventario::create([
                 'producto_id' => $producto->id,
                 'sucursal_id' => $sucursal->id,
+                'nombre_local' => $data['nombre'],
                 'existencia' => $existenciaInicial,
                 'fecha_vencimiento' => $data['fecha_vencimiento'] ?? null,
             ]);

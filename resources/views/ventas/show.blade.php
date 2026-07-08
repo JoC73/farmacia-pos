@@ -175,7 +175,7 @@
 
                                     <td class="border p-2">
 
-                                        {{ $detalle->producto->nombre }}
+                                        {{ $detalle->producto?->inventarios?->first()?->nombre_mostrado ?? $detalle->producto?->nombre ?? 'Producto eliminado' }}
 
                                     </td>
 

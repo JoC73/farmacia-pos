@@ -23,7 +23,12 @@
             @forelse ($inventarios as $inventario)
                 <tr>
                     <td class="p-2 border">
-                        {{ $inventario->producto->nombre ?? 'Producto eliminado' }}
+                        {{ $inventario->nombre_mostrado }}
+                        @if($inventario->nombre_local && $inventario->producto && $inventario->nombre_local !== $inventario->producto->nombre)
+                            <div class="text-xs text-gray-500">
+                                Catalogo: {{ $inventario->producto->nombre }}
+                            </div>
+                        @endif
                     </td>
 
                     <td class="p-2 border">

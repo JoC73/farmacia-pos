@@ -9,6 +9,7 @@ class Inventario extends Model
     protected $fillable = [
         'producto_id',
         'sucursal_id',
+        'nombre_local',
         'existencia',
         'fecha_vencimiento',
     ];
@@ -20,6 +21,13 @@ class Inventario extends Model
     public function producto()
     {
         return $this->belongsTo(Producto::class);
+    }
+
+    public function getNombreMostradoAttribute(): string
+    {
+        return trim((string) $this->nombre_local) !== ''
+            ? $this->nombre_local
+            : ($this->producto->nombre ?? 'Producto eliminado');
     }
 
     public function sucursal()

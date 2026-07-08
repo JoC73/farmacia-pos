@@ -31,9 +31,9 @@
                 </h3>
 
                 <p class="text-sm text-gray-600">
-                    Este modulo premium permite crear o actualizar productos globales desde Excel y registrar su
-                    existencia inicial en una o varias sucursales. Si no se coloca codigo_barra, el sistema intentara
-                    reconocer el producto por nombre/laboratorio antes de generar un codigo interno.
+                    Este modulo premium permite crear productos nuevos desde Excel y actualizar unicamente la
+                    existencia y fecha de vencimiento de la sucursal seleccionada. Los productos existentes no se
+                    renombran ni modifican sus datos globales durante la carga.
                 </p>
             </div>
 
@@ -44,7 +44,8 @@
                     </h3>
 
                     <p class="text-sm text-gray-600 mb-4">
-                        Llena los productos que deseas crear o actualizar. El codigo de barra es opcional.
+                        Llena los productos que deseas crear o cargar en inventario. El codigo de barra es opcional,
+                        pero ayuda a reconocer productos existentes sin cambiar su nombre global.
                     </p>
 
                     <a href="{{ route('inventarios.carga-inicial.plantilla') }}"
@@ -80,7 +81,8 @@
                             </div>
 
                             <p class="mt-1 text-xs text-gray-500">
-                                La existencia del Excel se aplicara por igual a cada sucursal seleccionada.
+                                La existencia del Excel se aplicara solo a las sucursales seleccionadas. No se tocaran
+                                inventarios de otras sucursales.
                             </p>
                         </div>
 
@@ -154,7 +156,14 @@
                                                 <span class="text-xs text-indigo-600">(generado)</span>
                                             @endif
                                         </td>
-                                        <td class="p-2 border">{{ $row['nombre'] }}</td>
+                                        <td class="p-2 border">
+                                            <div class="font-semibold">{{ $row['nombre'] }}</div>
+                                            @if($row['nombre_catalogo_diferente'] ?? false)
+                                                <div class="mt-1 text-xs text-amber-700">
+                                                    Catalogo: {{ $row['nombre_catalogo'] }}. La sucursal usara el nombre del Excel.
+                                                </div>
+                                            @endif
+                                        </td>
                                         <td class="p-2 border">{{ $row['categoria'] ?: '-' }}</td>
                                         <td class="p-2 border">{{ $row['laboratorio'] ?: '-' }}</td>
                                         <td class="p-2 border text-right">Q {{ number_format($row['costo'], 2) }}</td>

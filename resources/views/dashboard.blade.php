@@ -214,7 +214,7 @@
 
                                         <td class="p-2 border">
 
-                                            {{ $item->producto->nombre }}
+                                            {{ $item->nombre_mostrado }}
 
                                         </td>
 
@@ -314,7 +314,7 @@
 
                                         <td class="p-2 border">
 
-                                            {{ $item->producto->nombre ?? 'Producto eliminado' }}
+                                            {{ $item->nombre_mostrado }}
 
                                         </td>
 

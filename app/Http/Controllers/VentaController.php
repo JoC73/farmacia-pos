@@ -70,7 +70,7 @@ class VentaController extends Controller
         }
 
         $sucursalId = (int) auth()->user()->sucursal_id;
-        $cacheKey = 'pos_search:v1:'.$sucursalId.':'.md5(mb_strtolower($search));
+        $cacheKey = 'pos_search:v2:'.$sucursalId.':'.md5(mb_strtolower($search));
 
         return response()->json(
             Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {
@@ -147,7 +147,11 @@ if (!$user->sucursal_id) {
 
 if ($inventario->existencia < $item['cantidad']) {
 
-    abort(400, 'Stock insuficiente para el producto: ' . $producto->nombre);
+    $nombreProducto = trim((string) $inventario->nombre_local) !== ''
+        ? $inventario->nombre_local
+        : $producto->nombre;
+
+    abort(400, 'Stock insuficiente para el producto: ' . $nombreProducto);
 }
 
                 $subtotal = $producto->precio_venta * $item['cantidad'];
@@ -256,7 +260,7 @@ MovimientoCaja::create([
             'usuario',
             'sucursal',
             'cliente',
-            'detalles.producto',
+            'detalles.producto.inventarios' => fn ($query) => $query->where('sucursal_id', $venta->sucursal_id),
             'anulador',
         ]);
 
@@ -379,6 +383,7 @@ MovimientoCaja::create([
                 $query->where(function ($subquery) use ($like) {
                     $subquery
                         ->whereRaw('LOWER(productos.nombre) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(inventarios.nombre_local, \'\')) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(productos.codigo_barra) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(COALESCE(categorias.nombre, \'\')) LIKE ?', [$like]);
@@ -389,14 +394,15 @@ MovimientoCaja::create([
                 'productos.nombre',
                 'productos.codigo_barra',
                 'productos.precio_venta',
+                'inventarios.nombre_local',
                 'inventarios.existencia as inventario_actual',
             ])
-            ->orderByRaw('LOWER(productos.nombre)')
+            ->orderByRaw("LOWER(COALESCE(NULLIF(inventarios.nombre_local, ''), productos.nombre))")
             ->limit($limit)
             ->get()
             ->map(fn ($producto) => [
                 'id' => (string) $producto->id,
-                'nombre' => $producto->nombre,
+                'nombre' => trim((string) $producto->nombre_local) !== '' ? $producto->nombre_local : $producto->nombre,
                 'codigo_barra' => $producto->codigo_barra,
                 'precio_venta' => (float) $producto->precio_venta,
                 'inventario_actual' => (int) $producto->inventario_actual,

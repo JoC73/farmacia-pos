@@ -34,6 +34,7 @@ class InventarioController extends Controller
         ->when($search !== '', fn ($query) => $query->where(function ($subquery) use ($search) {
             $subquery
                 ->where('productos.nombre', 'like', "%{$search}%")
+                ->orWhere('inventarios.nombre_local', 'like', "%{$search}%")
                 ->orWhere('productos.codigo_barra', 'like', "%{$search}%")
                 ->orWhere('productos.laboratorio', 'like', "%{$search}%")
                 ->orWhere('categorias.nombre', 'like', "%{$search}%")
@@ -41,7 +42,7 @@ class InventarioController extends Controller
         }))
         ->when($estadoStock === 'bajo', fn ($query) => $query->whereColumn('inventarios.existencia', '<=', 'productos.stock_minimo'))
         ->when($estadoStock === 'normal', fn ($query) => $query->whereColumn('inventarios.existencia', '>', 'productos.stock_minimo'))
-        ->orderByRaw('LOWER(productos.nombre)')
+        ->orderByRaw("LOWER(COALESCE(NULLIF(inventarios.nombre_local, ''), productos.nombre))")
         ->orderByRaw("LOWER(COALESCE(sucursales.nombre, ''))")
         ->paginate($perPage)
         ->withQueryString();

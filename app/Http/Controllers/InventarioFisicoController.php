@@ -67,7 +67,7 @@ class InventarioFisicoController extends Controller
             $writer->addRow(Row::fromValues([
                     $producto->id,
                     $producto->codigo_barra,
-                    $producto->nombre,
+                    $inventario?->nombre_mostrado ?? $producto->nombre,
                     $producto->categoria->nombre ?? 'Sin categoria',
                     $sucursal->nombre,
                     $inventario?->existencia ?? 0,
@@ -365,7 +365,7 @@ class InventarioFisicoController extends Controller
         $previewRows->push([
             'producto_id' => $producto->id,
             'codigo_barra' => $producto->codigo_barra,
-            'producto' => $producto->nombre,
+            'producto' => $inventario?->nombre_mostrado ?? $producto->nombre,
             'existencia_sistema' => $sistema,
             'existencia_fisica' => $fisica,
             'diferencia' => $fisica - $sistema,

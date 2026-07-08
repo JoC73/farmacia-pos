@@ -76,7 +76,7 @@ class CompraController extends Controller
         }
 
         $sucursalId = (int) auth()->user()->sucursal_id;
-        $cacheKey = 'purchase_search:v1:'.$sucursalId.':'.md5(mb_strtolower($search));
+        $cacheKey = 'purchase_search:v2:'.$sucursalId.':'.md5(mb_strtolower($search));
 
         return response()->json(
             Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {
@@ -248,6 +248,7 @@ foreach ($request->productos as $item) {
                     ],
 
                     [
+                        'nombre_local' => $producto->nombre,
                         'existencia' => 0,
                     ]
 
@@ -310,7 +311,7 @@ foreach ($request->productos as $item) {
             'proveedor',
             'usuario',
             'sucursal',
-            'detalles.producto',
+            'detalles.producto.inventarios' => fn ($query) => $query->where('sucursal_id', $compra->sucursal_id),
         ]);
 
         return view('compras.show', compact('compra'));
@@ -318,22 +319,27 @@ foreach ($request->productos as $item) {
 
     private function availableProductsForPurchase(string $search = '', int $limit = 30)
     {
-        $sucursalId = auth()->user()->visibleSucursalId();
+        $sucursalId = auth()->user()->sucursal_id;
         $normalizedSearch = mb_strtolower($search);
 
         return Producto::query()
             ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
+            ->when($sucursalId, fn ($query) => $query->join('inventarios', function ($join) use ($sucursalId) {
+                $join->on('inventarios.producto_id', '=', 'productos.id')
+                    ->where('inventarios.sucursal_id', '=', $sucursalId);
+            }))
             ->where('productos.estado', true)
-            ->when($sucursalId, fn ($query) => $query->whereHas(
-                'inventarios',
-                fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
-            ))
-            ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch) {
+            ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch, $sucursalId) {
                 $like = "%{$normalizedSearch}%";
 
-                $query->where(function ($subquery) use ($like) {
+                $query->where(function ($subquery) use ($like, $sucursalId) {
+                    $subquery->whereRaw('LOWER(productos.nombre) LIKE ?', [$like]);
+
+                    if ($sucursalId) {
+                        $subquery->orWhereRaw('LOWER(COALESCE(inventarios.nombre_local, \'\')) LIKE ?', [$like]);
+                    }
+
                     $subquery
-                        ->whereRaw('LOWER(productos.nombre) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(productos.codigo_barra) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(COALESCE(categorias.nombre, \'\')) LIKE ?', [$like]);
@@ -345,8 +351,19 @@ foreach ($request->productos as $item) {
                 'productos.codigo_barra',
                 'productos.costo',
             ])
-            ->orderByRaw('LOWER(productos.nombre)')
+            ->when($sucursalId, fn ($query) => $query->addSelect('inventarios.nombre_local'))
+            ->orderByRaw($sucursalId
+                ? "LOWER(COALESCE(NULLIF(inventarios.nombre_local, ''), productos.nombre))"
+                : 'LOWER(productos.nombre)'
+            )
             ->limit($limit)
-            ->get();
+            ->get()
+            ->map(function ($producto) {
+                if (isset($producto->nombre_local) && trim((string) $producto->nombre_local) !== '') {
+                    $producto->nombre = $producto->nombre_local;
+                }
+
+                return $producto;
+            });
     }
 }

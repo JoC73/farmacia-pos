@@ -37,7 +37,7 @@
                             Producto
                         </div>
                         <div class="font-bold text-gray-900">
-                            {{ $inventario->producto->nombre ?? 'Producto eliminado' }}
+                            {{ $inventario->nombre_mostrado }}
                         </div>
                     </div>
 

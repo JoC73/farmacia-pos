@@ -21,13 +21,24 @@
 
         <tbody>
             @forelse ($productos as $producto)
+                @php
+                    $localInventario = $producto->relationLoaded('inventarios')
+                        ? $producto->inventarios->first()
+                        : null;
+                    $nombreMostrado = $localInventario?->nombre_mostrado ?? $producto->nombre;
+                @endphp
                 <tr>
                     <td class="p-2 border">
                         {{ $producto->codigo_barra }}
                     </td>
 
                     <td class="p-2 border">
-                        {{ $producto->nombre }}
+                        {{ $nombreMostrado }}
+                        @if($localInventario?->nombre_local && $localInventario->nombre_local !== $producto->nombre)
+                            <div class="text-xs text-gray-500">
+                                Catalogo: {{ $producto->nombre }}
+                            </div>
+                        @endif
                     </td>
 
                     <td class="p-2 border">
@@ -48,9 +59,7 @@
 
                     <td class="p-2 border">
                         @php
-                            $localInventarioForDate = $producto->relationLoaded('inventarios')
-                                ? $producto->inventarios->first()
-                                : null;
+                            $localInventarioForDate = $localInventario;
                             $fechaVencimiento = $localInventarioForDate?->fecha_vencimiento ?? $producto->fecha_vencimiento;
                         @endphp
 
@@ -81,10 +90,6 @@
                                 </button>
                             </form>
                         @elseif($canAdjustLocalInventory)
-                            @php
-                                $localInventario = $producto->inventarios->first();
-                            @endphp
-
                             @if($localInventario)
                                 <div class="flex flex-wrap gap-2">
                                     <a href="{{ route('inventarios.ajustar', $localInventario) }}"
@@ -96,7 +101,7 @@
                                             class="inline-flex rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
                                             data-open-expiry-modal
                                             data-action="{{ route('inventarios.vencimiento.update', $localInventario) }}"
-                                            data-producto="{{ $producto->nombre }}"
+                                            data-producto="{{ $nombreMostrado }}"
                                             data-sucursal="{{ $localInventario->sucursal->nombre ?? auth()->user()->sucursal?->nombre ?? 'Sucursal asignada' }}"
                                             data-fecha="{{ optional($localInventario->fecha_vencimiento)->format('Y-m-d') }}">
                                         {{ $localInventario->fecha_vencimiento ? 'Editar fecha' : 'Agregar fecha' }}

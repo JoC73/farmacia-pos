@@ -60,6 +60,7 @@ class EntradaInventarioController extends Controller
         DB::transaction(function () use ($request) {
 
             foreach ($request->productos as $item) {
+                $producto = Producto::findOrFail($item['producto_id']);
 
                 $inventario = Inventario::firstOrCreate(
                     [
@@ -67,6 +68,7 @@ class EntradaInventarioController extends Controller
                         'sucursal_id' => $request->sucursal_id,
                     ],
                     [
+                        'nombre_local' => $producto->nombre,
                         'existencia' => 0,
                     ]
                 );
