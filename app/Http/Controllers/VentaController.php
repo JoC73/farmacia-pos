@@ -376,6 +376,7 @@ MovimientoCaja::create([
             ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
             ->where('productos.estado', true)
             ->where('inventarios.sucursal_id', $sucursalId)
+            ->where('inventarios.activo', true)
             ->where('inventarios.existencia', '>', 0)
             ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch) {
                 $like = "%{$normalizedSearch}%";

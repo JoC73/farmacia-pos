@@ -32,6 +32,7 @@ class InventarioController extends Controller
         ->leftJoin('sucursales', 'inventarios.sucursal_id', '=', 'sucursales.id')
         ->select('inventarios.*')
         ->where('productos.estado', true)
+        ->where('inventarios.activo', true)
         ->when($sucursalId, fn ($query) => $query->where('inventarios.sucursal_id', $sucursalId))
         ->when($selectedSucursalId, fn ($query) => $query->where('inventarios.sucursal_id', $selectedSucursalId))
         ->when($search !== '', fn ($query) => $query->where(function ($subquery) use ($search) {
@@ -86,6 +87,7 @@ class InventarioController extends Controller
             ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
             ->select('inventarios.*')
             ->where('inventarios.sucursal_id', $sucursal->id)
+            ->where('inventarios.activo', true)
             ->where('productos.estado', true)
             ->orderByRaw("LOWER(COALESCE(NULLIF(inventarios.nombre_local, ''), productos.nombre))")
             ->get();

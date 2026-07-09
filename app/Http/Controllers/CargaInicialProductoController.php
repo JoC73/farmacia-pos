@@ -25,6 +25,7 @@ class CargaInicialProductoController extends Controller
             'previewRows' => collect(),
             'importErrors' => collect(),
             'selectedSucursales' => [],
+            'modoCarga' => 'actualizar',
             'previewToken' => null,
         ]);
     }
@@ -74,11 +75,26 @@ class CargaInicialProductoController extends Controller
         $data = $request->validate([
             'sucursal_ids' => ['required', 'array', 'min:1'],
             'sucursal_ids.*' => ['required', 'integer', 'exists:sucursales,id'],
+            'modo_carga' => ['required', 'in:actualizar,reemplazar'],
             'archivo' => ['required', 'file', 'mimes:xlsx', 'max:4096'],
         ]);
 
         $sucursalIds = $this->normalizeSucursalIds($data['sucursal_ids']);
         $this->authorizeSucursalesAccess($sucursalIds);
+        $modoCarga = $data['modo_carga'];
+
+        if ($modoCarga === 'reemplazar' && count($sucursalIds) !== 1) {
+            return view('inventarios.carga-inicial', [
+                'sucursales' => $this->sucursales(),
+                'previewRows' => collect(),
+                'importErrors' => collect([
+                    'El modo reemplazar inventario solo permite seleccionar una sucursal por carga.',
+                ]),
+                'selectedSucursales' => $sucursalIds,
+                'modoCarga' => $modoCarga,
+                'previewToken' => null,
+            ]);
+        }
 
         try {
             [$previewRows, $importErrors] = $this->parseXlsx(
@@ -102,6 +118,7 @@ class CargaInicialProductoController extends Controller
             session([
                 "carga_inicial_productos.{$previewToken}" => [
                     'sucursal_ids' => $sucursalIds,
+                    'modo_carga' => $modoCarga,
                     'rows' => $previewRows->values()->all(),
                 ],
             ]);
@@ -112,6 +129,7 @@ class CargaInicialProductoController extends Controller
             'previewRows' => $previewRows,
             'importErrors' => $importErrors,
             'selectedSucursales' => $sucursalIds,
+            'modoCarga' => $modoCarga,
             'previewToken' => $previewToken,
         ]);
     }
@@ -121,15 +139,25 @@ class CargaInicialProductoController extends Controller
         $data = $request->validate([
             'sucursal_ids' => ['required', 'array', 'min:1'],
             'sucursal_ids.*' => ['required', 'integer', 'exists:sucursales,id'],
+            'modo_carga' => ['required', 'in:actualizar,reemplazar'],
             'preview_token' => ['required', 'string'],
         ]);
 
         $sucursalIds = $this->normalizeSucursalIds($data['sucursal_ids']);
         $this->authorizeSucursalesAccess($sucursalIds);
+        $modoCarga = $data['modo_carga'];
+
+        if ($modoCarga === 'reemplazar' && count($sucursalIds) !== 1) {
+            return redirect()
+                ->route('inventarios.carga-inicial')
+                ->with('error', 'El modo reemplazar inventario solo permite una sucursal por carga.');
+        }
 
         $preview = session()->pull("carga_inicial_productos.{$data['preview_token']}");
 
-        if (!$preview || $this->normalizeSucursalIds($preview['sucursal_ids'] ?? []) !== $sucursalIds) {
+        if (!$preview
+            || $this->normalizeSucursalIds($preview['sucursal_ids'] ?? []) !== $sucursalIds
+            || ($preview['modo_carga'] ?? null) !== $modoCarga) {
             return redirect()
                 ->route('inventarios.carga-inicial')
                 ->with('error', 'La vista previa expiro. Vuelve a validar el archivo antes de confirmar.');
@@ -146,9 +174,12 @@ class CargaInicialProductoController extends Controller
         $creados = 0;
         $existentes = 0;
         $inventariosActualizados = 0;
+        $inventariosOcultados = 0;
         $movimientos = 0;
 
-        DB::transaction(function () use ($rows, $sucursalIds, &$creados, &$existentes, &$inventariosActualizados, &$movimientos) {
+        DB::transaction(function () use ($rows, $sucursalIds, $modoCarga, &$creados, &$existentes, &$inventariosActualizados, &$inventariosOcultados, &$movimientos) {
+            $productIdsInFile = collect();
+
             foreach ($rows as $row) {
                 $producto = $this->findExistingProduct($row['codigo_barra'], $row['nombre'], $row['laboratorio']);
 
@@ -176,6 +207,8 @@ class CargaInicialProductoController extends Controller
                     $creados++;
                 }
 
+                $productIdsInFile->push($producto->id);
+
                 foreach ($sucursalIds as $sucursalId) {
                     $inventario = Inventario::firstOrCreate(
                         [
@@ -184,6 +217,7 @@ class CargaInicialProductoController extends Controller
                         ],
                         [
                             'nombre_local' => $row['nombre'],
+                            'activo' => true,
                             'existencia' => 0,
                         ]
                     );
@@ -198,9 +232,10 @@ class CargaInicialProductoController extends Controller
                     $fechaNueva = $row['fecha_vencimiento'];
                     $fechaCambio = $fechaAnterior !== $fechaNueva;
 
-                    if ($existenciaNueva !== $existenciaAnterior || $fechaCambio || $nombreCambio) {
+                    if ($existenciaNueva !== $existenciaAnterior || $fechaCambio || $nombreCambio || ! $inventario->activo) {
                         $inventario->update([
                             'nombre_local' => $nombreNuevo,
+                            'activo' => true,
                             'existencia' => $existenciaNueva,
                             'fecha_vencimiento' => $fechaNueva,
                         ]);
@@ -226,11 +261,49 @@ class CargaInicialProductoController extends Controller
                     }
                 }
             }
+
+            if ($modoCarga === 'reemplazar') {
+                $sucursalId = $sucursalIds[0];
+                $productIdsInFile = $productIdsInFile->unique()->values();
+
+                $inventariosFueraDelArchivo = Inventario::where('sucursal_id', $sucursalId)
+                    ->where('activo', true)
+                    ->when($productIdsInFile->isNotEmpty(), fn ($query) => $query->whereNotIn('producto_id', $productIdsInFile))
+                    ->get();
+
+                foreach ($inventariosFueraDelArchivo as $inventario) {
+                    $existenciaAnterior = (int) $inventario->existencia;
+
+                    $inventario->update([
+                        'activo' => false,
+                        'existencia' => 0,
+                    ]);
+
+                    $inventariosOcultados++;
+                    $inventariosActualizados++;
+
+                    if ($existenciaAnterior > 0) {
+                        MovimientoInventario::create([
+                            'producto_id' => $inventario->producto_id,
+                            'sucursal_id' => $sucursalId,
+                            'user_id' => auth()->id(),
+                            'tipo_movimiento' => 'AJUSTE_SALIDA',
+                            'cantidad' => $existenciaAnterior,
+                            'existencia_anterior' => $existenciaAnterior,
+                            'existencia_nueva' => 0,
+                            'referencia' => 'Reemplazo de inventario masivo',
+                            'observacion' => 'Producto ocultado porque no venia en el Excel de reemplazo de la sucursal.',
+                        ]);
+
+                        $movimientos++;
+                    }
+                }
+            }
         });
 
         return redirect()
             ->route('inventarios.index')
-            ->with('success', "Carga aplicada en " . count($sucursalIds) . " sucursal(es). Productos creados: {$creados}. Productos existentes reutilizados: {$existentes}. Inventarios actualizados: {$inventariosActualizados}. Movimientos: {$movimientos}.");
+            ->with('success', "Carga aplicada en " . count($sucursalIds) . " sucursal(es). Modo: {$modoCarga}. Productos creados: {$creados}. Productos existentes reutilizados: {$existentes}. Inventarios actualizados: {$inventariosActualizados}. Ocultados por reemplazo: {$inventariosOcultados}. Movimientos: {$movimientos}.");
     }
 
     private function parseXlsx(string $path): array

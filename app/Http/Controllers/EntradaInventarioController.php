@@ -69,6 +69,7 @@ class EntradaInventarioController extends Controller
                     ],
                     [
                         'nombre_local' => $producto->nombre,
+                        'activo' => true,
                         'existencia' => 0,
                     ]
                 );
@@ -79,6 +80,7 @@ class EntradaInventarioController extends Controller
                     $existenciaAnterior + $item['cantidad'];
 
                 $inventario->update([
+                    'activo' => true,
                     'existencia' => $existenciaNueva,
                 ]);
 

@@ -249,6 +249,7 @@ foreach ($request->productos as $item) {
 
                     [
                         'nombre_local' => $producto->nombre,
+                        'activo' => true,
                         'existencia' => 0,
                     ]
 
@@ -260,6 +261,8 @@ foreach ($request->productos as $item) {
                     $existenciaAnterior + $cantidad;
 
                 $inventarioData = [
+
+                    'activo' => true,
 
                     'existencia' => $existenciaNueva,
 
@@ -326,7 +329,8 @@ foreach ($request->productos as $item) {
             ->leftJoin('categorias', 'productos.categoria_id', '=', 'categorias.id')
             ->when($sucursalId, fn ($query) => $query->join('inventarios', function ($join) use ($sucursalId) {
                 $join->on('inventarios.producto_id', '=', 'productos.id')
-                    ->where('inventarios.sucursal_id', '=', $sucursalId);
+                    ->where('inventarios.sucursal_id', '=', $sucursalId)
+                    ->where('inventarios.activo', '=', true);
             }))
             ->where('productos.estado', true)
             ->when($normalizedSearch !== '', function ($query) use ($normalizedSearch, $sucursalId) {

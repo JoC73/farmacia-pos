@@ -10,11 +10,13 @@ class Inventario extends Model
         'producto_id',
         'sucursal_id',
         'nombre_local',
+        'activo',
         'existencia',
         'fecha_vencimiento',
     ];
 
     protected $casts = [
+        'activo' => 'boolean',
         'fecha_vencimiento' => 'date',
     ];
 

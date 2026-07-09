@@ -39,7 +39,9 @@ class InventarioFisicoController extends Controller
         $sucursal = Sucursal::findOrFail($data['sucursal_id']);
         $productos = Producto::with([
             'categoria',
-            'inventarios' => fn ($query) => $query->where('sucursal_id', $sucursal->id),
+            'inventarios' => fn ($query) => $query
+                ->where('sucursal_id', $sucursal->id)
+                ->where('activo', true),
         ])
             ->where('estado', true)
             ->ordenadoPorNombre()
@@ -357,6 +359,7 @@ class InventarioFisicoController extends Controller
 
         $inventario = Inventario::where('producto_id', $producto->id)
             ->where('sucursal_id', $sucursalId)
+            ->where('activo', true)
             ->first();
 
         $sistema = (int) ($inventario?->existencia ?? 0);

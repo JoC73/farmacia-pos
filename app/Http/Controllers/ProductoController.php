@@ -21,12 +21,16 @@ class ProductoController extends Controller
 
         $productos = Producto::with('categoria')
             ->when($sucursalId, fn ($query) => $query->with([
-                'inventarios' => fn ($inventario) => $inventario->where('sucursal_id', $sucursalId),
+                'inventarios' => fn ($inventario) => $inventario
+                    ->where('sucursal_id', $sucursalId)
+                    ->where('activo', true),
             ]))
             ->where('estado', true)
             ->when($sucursalId, fn ($query) => $query->whereHas(
                 'inventarios',
-                fn ($inventario) => $inventario->where('sucursal_id', $sucursalId)
+                fn ($inventario) => $inventario
+                    ->where('sucursal_id', $sucursalId)
+                    ->where('activo', true)
             ))
             ->when($search !== '', fn ($query) => $query->where(function ($subquery) use ($search, $sucursalId) {
                 $subquery
@@ -39,6 +43,7 @@ class ProductoController extends Controller
                         'inventarios',
                         fn ($inventario) => $inventario
                             ->where('sucursal_id', $sucursalId)
+                            ->where('activo', true)
                             ->where('nombre_local', 'like', "%{$search}%")
                     );
                 }
@@ -171,6 +176,7 @@ class ProductoController extends Controller
                 'producto_id' => $producto->id,
                 'sucursal_id' => $sucursal->id,
                 'nombre_local' => $data['nombre'],
+                'activo' => true,
                 'existencia' => $existenciaInicial,
                 'fecha_vencimiento' => $data['fecha_vencimiento'] ?? null,
             ]);

@@ -42,6 +42,7 @@ class DashboardController extends Controller
 
         $productosPorVencer = Inventario::with(['producto', 'sucursal'])
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
+            ->where('activo', true)
             ->where('existencia', '>', 0)
             ->whereNotNull('inventarios.fecha_vencimiento')
             ->whereDate('inventarios.fecha_vencimiento', '<=', Carbon::now()->addDays(90))
@@ -55,6 +56,7 @@ class DashboardController extends Controller
 
         $productosVencidos = Inventario::with(['producto', 'sucursal'])
             ->where('existencia', '>', 0)
+            ->where('activo', true)
             ->whereNotNull('inventarios.fecha_vencimiento')
             ->when($sucursalId, fn ($query) => $query->whereHas(
                 'sucursal',

@@ -88,6 +88,46 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700">
+                                Modo de carga
+                            </label>
+
+                            <div class="mt-2 grid gap-2">
+                                <label class="rounded border border-gray-200 p-3 text-sm">
+                                    <div class="flex items-start gap-2">
+                                        <input type="radio"
+                                               name="modo_carga"
+                                               value="actualizar"
+                                               @checked(($modoCarga ?? 'actualizar') === 'actualizar')
+                                               class="mt-1 border-gray-300">
+                                        <div>
+                                            <div class="font-semibold text-gray-800">Actualizar productos del Excel</div>
+                                            <div class="text-xs text-gray-500">
+                                                Solo actualiza o crea lo que viene en el archivo. Lo que no venga se conserva.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <label class="rounded border border-amber-200 bg-amber-50 p-3 text-sm">
+                                    <div class="flex items-start gap-2">
+                                        <input type="radio"
+                                               name="modo_carga"
+                                               value="reemplazar"
+                                               @checked(($modoCarga ?? 'actualizar') === 'reemplazar')
+                                               class="mt-1 border-gray-300">
+                                        <div>
+                                            <div class="font-semibold text-amber-900">Reemplazar inventario de la sucursal</div>
+                                            <div class="text-xs text-amber-800">
+                                                Recomendado para inventario fisico. Los productos que no vengan en el Excel se ocultaran solo en esa sucursal y quedaran con existencia 0. No borra ventas, cajas ni historial.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">
                                 Archivo Excel
                             </label>
 
@@ -118,10 +158,11 @@
                             @foreach (($selectedSucursales ?? []) as $sucursalId)
                                 <input type="hidden" name="sucursal_ids[]" value="{{ $sucursalId }}">
                             @endforeach
+                            <input type="hidden" name="modo_carga" value="{{ $modoCarga ?? 'actualizar' }}">
                             <input type="hidden" name="preview_token" value="{{ $previewToken }}">
 
                             <button type="submit"
-                                    onclick="return confirm('Deseas aplicar esta carga inicial masiva?')"
+                                    onclick="return confirm('{{ ($modoCarga ?? 'actualizar') === 'reemplazar' ? 'Vas a reemplazar el inventario de la sucursal seleccionada. Los productos que no vengan en el Excel se ocultaran solo en esa sucursal. Deseas continuar?' : 'Deseas aplicar esta carga inicial masiva?' }}')"
                                     class="rounded bg-green-600 px-4 py-2 text-white">
                                 Confirmar carga
                             </button>
