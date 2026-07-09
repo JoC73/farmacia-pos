@@ -44,7 +44,12 @@ class ProductoController extends Controller
                         fn ($inventario) => $inventario
                             ->where('sucursal_id', $sucursalId)
                             ->where('activo', true)
-                            ->where('nombre_local', 'like', "%{$search}%")
+                            ->where(function ($localQuery) use ($search) {
+                                $localQuery
+                                    ->where('nombre_local', 'like', "%{$search}%")
+                                    ->orWhere('categoria_local', 'like', "%{$search}%")
+                                    ->orWhere('laboratorio_local', 'like', "%{$search}%");
+                            })
                     );
                 }
 
@@ -176,6 +181,12 @@ class ProductoController extends Controller
                 'producto_id' => $producto->id,
                 'sucursal_id' => $sucursal->id,
                 'nombre_local' => $data['nombre'],
+                'categoria_local' => optional($producto->categoria)->nombre,
+                'laboratorio_local' => $data['laboratorio'] ?? null,
+                'costo_local' => $data['costo'],
+                'precio_venta_local' => $data['precio_venta'],
+                'stock_minimo_local' => $data['stock_minimo'],
+                'descripcion_local' => $data['descripcion'] ?? null,
                 'activo' => true,
                 'existencia' => $existenciaInicial,
                 'fecha_vencimiento' => $data['fecha_vencimiento'] ?? null,

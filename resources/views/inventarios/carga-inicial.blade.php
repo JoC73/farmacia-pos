@@ -31,9 +31,10 @@
                 </h3>
 
                 <p class="text-sm text-gray-600">
-                    Este modulo premium permite crear productos nuevos desde Excel y actualizar unicamente la
-                    existencia y fecha de vencimiento de la sucursal seleccionada. Los productos existentes no se
-                    renombran ni modifican sus datos globales durante la carga.
+                    Este modulo premium permite crear productos nuevos desde Excel y actualizar los datos operativos
+                    de la sucursal seleccionada: nombre, categoria, laboratorio, costo, precio, stock minimo,
+                    existencia y fecha de vencimiento. Los productos existentes no modifican sus datos globales ni
+                    afectan otras sucursales durante la carga.
                 </p>
             </div>
 

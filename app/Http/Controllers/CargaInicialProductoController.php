@@ -217,6 +217,12 @@ class CargaInicialProductoController extends Controller
                         ],
                         [
                             'nombre_local' => $row['nombre'],
+                            'categoria_local' => $row['categoria'],
+                            'laboratorio_local' => $row['laboratorio'],
+                            'costo_local' => $row['costo'],
+                            'precio_venta_local' => $row['precio_venta'],
+                            'stock_minimo_local' => $row['stock_minimo'],
+                            'descripcion_local' => $row['descripcion'],
                             'activo' => true,
                             'existencia' => 0,
                         ]
@@ -227,14 +233,27 @@ class CargaInicialProductoController extends Controller
                     $nombreAnterior = trim((string) $inventario->nombre_local);
                     $nombreNuevo = trim((string) $row['nombre']);
                     $nombreCambio = $nombreAnterior !== $nombreNuevo;
+                    $datosLocalesCambio =
+                        trim((string) $inventario->categoria_local) !== trim((string) $row['categoria'])
+                        || trim((string) $inventario->laboratorio_local) !== trim((string) $row['laboratorio'])
+                        || (float) $inventario->costo_local !== (float) $row['costo']
+                        || (float) $inventario->precio_venta_local !== (float) $row['precio_venta']
+                        || (int) $inventario->stock_minimo_local !== (int) $row['stock_minimo']
+                        || trim((string) $inventario->descripcion_local) !== trim((string) $row['descripcion']);
 
                     $fechaAnterior = optional($inventario->fecha_vencimiento)->format('Y-m-d');
                     $fechaNueva = $row['fecha_vencimiento'];
                     $fechaCambio = $fechaAnterior !== $fechaNueva;
 
-                    if ($existenciaNueva !== $existenciaAnterior || $fechaCambio || $nombreCambio || ! $inventario->activo) {
+                    if ($existenciaNueva !== $existenciaAnterior || $fechaCambio || $nombreCambio || $datosLocalesCambio || ! $inventario->activo) {
                         $inventario->update([
                             'nombre_local' => $nombreNuevo,
+                            'categoria_local' => $row['categoria'],
+                            'laboratorio_local' => $row['laboratorio'],
+                            'costo_local' => $row['costo'],
+                            'precio_venta_local' => $row['precio_venta'],
+                            'stock_minimo_local' => $row['stock_minimo'],
+                            'descripcion_local' => $row['descripcion'],
                             'activo' => true,
                             'existencia' => $existenciaNueva,
                             'fecha_vencimiento' => $fechaNueva,

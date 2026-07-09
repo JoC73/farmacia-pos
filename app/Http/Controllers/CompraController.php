@@ -76,7 +76,7 @@ class CompraController extends Controller
         }
 
         $sucursalId = (int) auth()->user()->sucursal_id;
-        $cacheKey = 'purchase_search:v2:'.$sucursalId.':'.md5(mb_strtolower($search));
+        $cacheKey = 'purchase_search:v3:'.$sucursalId.':'.md5(mb_strtolower($search));
 
         return response()->json(
             Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {
@@ -250,6 +250,7 @@ foreach ($request->productos as $item) {
                     [
                         'nombre_local' => $producto->nombre,
                         'activo' => true,
+                        'costo_local' => $costo,
                         'existencia' => 0,
                     ]
 
@@ -263,6 +264,8 @@ foreach ($request->productos as $item) {
                 $inventarioData = [
 
                     'activo' => true,
+
+                    'costo_local' => $costo,
 
                     'existencia' => $existenciaNueva,
 
@@ -340,7 +343,10 @@ foreach ($request->productos as $item) {
                     $subquery->whereRaw('LOWER(productos.nombre) LIKE ?', [$like]);
 
                     if ($sucursalId) {
-                        $subquery->orWhereRaw('LOWER(COALESCE(inventarios.nombre_local, \'\')) LIKE ?', [$like]);
+                        $subquery
+                            ->orWhereRaw('LOWER(COALESCE(inventarios.nombre_local, \'\')) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(COALESCE(inventarios.categoria_local, \'\')) LIKE ?', [$like])
+                            ->orWhereRaw('LOWER(COALESCE(inventarios.laboratorio_local, \'\')) LIKE ?', [$like]);
                     }
 
                     $subquery
@@ -355,7 +361,10 @@ foreach ($request->productos as $item) {
                 'productos.codigo_barra',
                 'productos.costo',
             ])
-            ->when($sucursalId, fn ($query) => $query->addSelect('inventarios.nombre_local'))
+            ->when($sucursalId, fn ($query) => $query->addSelect([
+                'inventarios.nombre_local',
+                'inventarios.costo_local',
+            ]))
             ->orderByRaw($sucursalId
                 ? "LOWER(COALESCE(NULLIF(inventarios.nombre_local, ''), productos.nombre))"
                 : 'LOWER(productos.nombre)'
@@ -365,6 +374,10 @@ foreach ($request->productos as $item) {
             ->map(function ($producto) {
                 if (isset($producto->nombre_local) && trim((string) $producto->nombre_local) !== '') {
                     $producto->nombre = $producto->nombre_local;
+                }
+
+                if (isset($producto->costo_local) && $producto->costo_local !== null) {
+                    $producto->costo = $producto->costo_local;
                 }
 
                 return $producto;

@@ -39,6 +39,8 @@ class InventarioController extends Controller
             $subquery
                 ->where('productos.nombre', 'like', "%{$search}%")
                 ->orWhere('inventarios.nombre_local', 'like', "%{$search}%")
+                ->orWhere('inventarios.categoria_local', 'like', "%{$search}%")
+                ->orWhere('inventarios.laboratorio_local', 'like', "%{$search}%")
                 ->orWhere('productos.codigo_barra', 'like', "%{$search}%")
                 ->orWhere('productos.laboratorio', 'like', "%{$search}%")
                 ->orWhere('categorias.nombre', 'like', "%{$search}%")
@@ -119,11 +121,11 @@ class InventarioController extends Controller
                 $producto?->codigo_barra,
                 $inventario->nombre_mostrado,
                 $producto?->nombre,
-                $producto?->categoria?->nombre ?? 'Sin categoria',
-                $producto?->laboratorio,
-                (float) ($producto?->costo ?? 0),
-                (float) ($producto?->precio_venta ?? 0),
-                (int) ($producto?->stock_minimo ?? 0),
+                $inventario->categoria_mostrada,
+                $inventario->laboratorio_mostrado,
+                $inventario->costo_mostrado,
+                $inventario->precio_venta_mostrado,
+                $inventario->stock_minimo_mostrado,
                 (int) $inventario->existencia,
                 optional($inventario->fecha_vencimiento)->format('Y-m-d'),
             ]));

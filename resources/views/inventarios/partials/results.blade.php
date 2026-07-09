@@ -40,7 +40,7 @@
                     </td>
 
                     <td class="p-2 border">
-                        {{ $inventario->producto->stock_minimo ?? 0 }}
+                        {{ $inventario->stock_minimo_mostrado }}
                     </td>
 
                     <td class="p-2 border">
@@ -48,7 +48,7 @@
                     </td>
 
                     <td class="p-2 border">
-                        @if($inventario->producto && $inventario->existencia <= $inventario->producto->stock_minimo)
+                        @if($inventario->producto && $inventario->existencia <= $inventario->stock_minimo_mostrado)
                             <span class="text-red-600 font-bold">
                                 STOCK BAJO
                             </span>

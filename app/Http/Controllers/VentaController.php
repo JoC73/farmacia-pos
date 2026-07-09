@@ -178,7 +178,7 @@ class VentaController extends Controller
         }
 
         $sucursalId = (int) auth()->user()->sucursal_id;
-        $cacheKey = 'pos_search:v2:'.$sucursalId.':'.md5(mb_strtolower($search));
+        $cacheKey = 'pos_search:v3:'.$sucursalId.':'.md5(mb_strtolower($search));
 
         return response()->json(
             Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {
@@ -245,6 +245,7 @@ if (!$user->sucursal_id) {
 
                 $inventario = Inventario::where('producto_id', $item['producto_id'])
                     ->where('sucursal_id', $user->sucursal_id)
+                    ->where('activo', true)
                     ->first();
 
                 if (!$inventario) {
@@ -262,7 +263,8 @@ if ($inventario->existencia < $item['cantidad']) {
     abort(400, 'Stock insuficiente para el producto: ' . $nombreProducto);
 }
 
-                $subtotal = $producto->precio_venta * $item['cantidad'];
+                $precioVenta = $inventario->precio_venta_mostrado;
+                $subtotal = $precioVenta * $item['cantidad'];
 
                 $subtotalGeneral += $subtotal;
 
@@ -270,6 +272,7 @@ if ($inventario->existencia < $item['cantidad']) {
                     'producto' => $producto,
                     'inventario' => $inventario,
                     'cantidad' => $item['cantidad'],
+                    'precio_venta' => $precioVenta,
                     'subtotal' => $subtotal,
                 ];
             }
@@ -302,13 +305,14 @@ if ($inventario->existencia < $item['cantidad']) {
                 $producto = $item['producto'];
                 $inventario = $item['inventario'];
                 $cantidad = $item['cantidad'];
+                $precioVenta = $item['precio_venta'];
                 $subtotal = $item['subtotal'];
 
                 DetalleVenta::create([
                     'venta_id' => $venta->id,
                     'producto_id' => $producto->id,
                     'cantidad' => $cantidad,
-                    'precio_unitario' => $producto->precio_venta,
+                    'precio_unitario' => $precioVenta,
                     'subtotal' => $subtotal,
                 ]);
 
@@ -493,6 +497,8 @@ MovimientoCaja::create([
                     $subquery
                         ->whereRaw('LOWER(productos.nombre) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(COALESCE(inventarios.nombre_local, \'\')) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(inventarios.categoria_local, \'\')) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(COALESCE(inventarios.laboratorio_local, \'\')) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(productos.codigo_barra) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(COALESCE(productos.laboratorio, \'\')) LIKE ?', [$like])
                         ->orWhereRaw('LOWER(COALESCE(categorias.nombre, \'\')) LIKE ?', [$like]);
@@ -504,6 +510,7 @@ MovimientoCaja::create([
                 'productos.codigo_barra',
                 'productos.precio_venta',
                 'inventarios.nombre_local',
+                'inventarios.precio_venta_local',
                 'inventarios.existencia as inventario_actual',
             ])
             ->orderByRaw("LOWER(COALESCE(NULLIF(inventarios.nombre_local, ''), productos.nombre))")
@@ -513,7 +520,7 @@ MovimientoCaja::create([
                 'id' => (string) $producto->id,
                 'nombre' => trim((string) $producto->nombre_local) !== '' ? $producto->nombre_local : $producto->nombre,
                 'codigo_barra' => $producto->codigo_barra,
-                'precio_venta' => (float) $producto->precio_venta,
+                'precio_venta' => $producto->precio_venta_local !== null ? (float) $producto->precio_venta_local : (float) $producto->precio_venta,
                 'inventario_actual' => (int) $producto->inventario_actual,
             ]);
     }

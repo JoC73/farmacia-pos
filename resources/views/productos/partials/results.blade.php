@@ -26,6 +26,10 @@
                         ? $producto->inventarios->first()
                         : null;
                     $nombreMostrado = $localInventario?->nombre_mostrado ?? $producto->nombre;
+                    $categoriaMostrada = $localInventario?->categoria_mostrada ?? ($producto->categoria->nombre ?? 'Sin categoría');
+                    $costoMostrado = $localInventario?->costo_mostrado ?? $producto->costo;
+                    $precioMostrado = $localInventario?->precio_venta_mostrado ?? $producto->precio_venta;
+                    $stockMinimoMostrado = $localInventario?->stock_minimo_mostrado ?? $producto->stock_minimo;
                 @endphp
                 <tr>
                     <td class="p-2 border">
@@ -42,19 +46,19 @@
                     </td>
 
                     <td class="p-2 border">
-                        {{ $producto->categoria->nombre ?? 'Sin categoría' }}
+                        {{ $categoriaMostrada }}
                     </td>
 
                     <td class="p-2 border">
-                        Q {{ number_format($producto->costo, 2) }}
+                        Q {{ number_format($costoMostrado, 2) }}
                     </td>
 
                     <td class="p-2 border">
-                        Q {{ number_format($producto->precio_venta, 2) }}
+                        Q {{ number_format($precioMostrado, 2) }}
                     </td>
 
                     <td class="p-2 border">
-                        {{ $producto->stock_minimo }}
+                        {{ $stockMinimoMostrado }}
                     </td>
 
                     <td class="p-2 border">

@@ -70,7 +70,7 @@ class InventarioFisicoController extends Controller
                     $producto->id,
                     $producto->codigo_barra,
                     $inventario?->nombre_mostrado ?? $producto->nombre,
-                    $producto->categoria->nombre ?? 'Sin categoria',
+                    $inventario?->categoria_mostrada ?? ($producto->categoria->nombre ?? 'Sin categoria'),
                     $sucursal->nombre,
                     $inventario?->existencia ?? 0,
                     '',
