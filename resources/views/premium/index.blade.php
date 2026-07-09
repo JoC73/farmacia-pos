@@ -43,9 +43,9 @@
                         </h3>
 
                         <p class="text-sm text-gray-600">
-                            Esta accion deja una sucursal lista para una nueva carga masiva. Elimina datos operativos
-                            de la sucursal seleccionada y conserva usuarios, roles, permisos, modulos premium y las
-                            demas sucursales.
+                            Esta accion deja una sucursal lista para una nueva carga masiva sin borrar historial.
+                            Oculta los productos activos de la sucursal seleccionada y coloca sus existencias en 0,
+                            conservando ventas, compras, cajas, cierres y las demas sucursales.
                         </p>
 
                         <div class="mt-4 overflow-x-auto">
@@ -53,7 +53,8 @@
                                 <thead>
                                     <tr class="bg-gray-100">
                                         <th class="border p-2 text-left">Sucursal</th>
-                                        <th class="border p-2 text-right">Inventario</th>
+                                        <th class="border p-2 text-right">Inventarios activos</th>
+                                        <th class="border p-2 text-right">Existencia</th>
                                         <th class="border p-2 text-right">Ventas</th>
                                         <th class="border p-2 text-right">Compras</th>
                                         <th class="border p-2 text-right">Cajas</th>
@@ -65,13 +66,14 @@
                                         <tr>
                                             <td class="border p-2 font-semibold">{{ $sucursal->nombre }}</td>
                                             <td class="border p-2 text-right">{{ $stats['inventarios'] ?? 0 }}</td>
+                                            <td class="border p-2 text-right">{{ $stats['existencia'] ?? 0 }}</td>
                                             <td class="border p-2 text-right">{{ $stats['ventas'] ?? 0 }}</td>
                                             <td class="border p-2 text-right">{{ $stats['compras'] ?? 0 }}</td>
                                             <td class="border p-2 text-right">{{ $stats['cajas'] ?? 0 }}</td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="border p-4 text-center text-gray-500">
+                                            <td colspan="6" class="border p-4 text-center text-gray-500">
                                                 No hay sucursales activas.
                                             </td>
                                         </tr>
@@ -84,7 +86,7 @@
                     <form method="POST"
                           action="{{ route('premium.branch-cleanup') }}"
                           class="rounded border border-red-200 bg-red-50 p-4"
-                          onsubmit="return confirm('Esta accion limpiara datos operativos de la sucursal seleccionada. ¿Deseas continuar?')">
+                          onsubmit="return confirm('Esta accion ocultara productos activos y pondra existencias en 0 solo en la sucursal seleccionada. No borrara ventas, cajas ni historial. ¿Deseas continuar?')">
                         @csrf
 
                         <div class="mb-4">
@@ -110,22 +112,22 @@
                                    type="text"
                                    name="confirmation"
                                    class="w-full rounded border-gray-300"
-                                   placeholder="Escribe BORRAR"
+                                   placeholder="Escribe BORRAR INVENTARIO"
                                    required>
                             <p class="mt-1 text-xs text-gray-600">
-                                Para evitar errores, escribe exactamente <strong>BORRAR</strong>.
+                                Para evitar errores, escribe exactamente <strong>BORRAR INVENTARIO</strong>.
                             </p>
                         </div>
 
                         <div class="mb-4 rounded bg-white p-3 text-sm text-red-700">
-                            Se eliminaran inventarios, movimientos de inventario, ventas, compras, cajas y movimientos
-                            de caja de la sucursal seleccionada. Los productos que ya no pertenezcan a ninguna sucursal
-                            quedaran desactivados.
+                            No se eliminaran ventas, compras, cajas, cierres ni movimientos de caja. Los productos de
+                            la sucursal quedaran ocultos operativamente y sus existencias pasaran a 0 con movimiento
+                            de inventario de salida cuando corresponda.
                         </div>
 
                         <button type="submit"
                                 class="w-full rounded bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-800">
-                            Limpiar sucursal seleccionada
+                            Borrar inventario seguro
                         </button>
                     </form>
                 </div>

@@ -4,15 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Caja;
 use App\Models\Compra;
-use App\Models\DetalleCompra;
-use App\Models\DetalleVenta;
 use App\Models\Inventario;
-use App\Models\MovimientoCaja;
 use App\Models\MovimientoInventario;
 use App\Models\PremiumModule;
-use App\Models\Producto;
 use App\Models\Sucursal;
-use App\Models\Venta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -30,7 +25,12 @@ class PremiumModuleController extends Controller
         $branchCleanupStats = $sucursales->mapWithKeys(function (Sucursal $sucursal) {
             return [
                 $sucursal->id => [
-                    'inventarios' => Inventario::where('sucursal_id', $sucursal->id)->count(),
+                    'inventarios' => Inventario::where('sucursal_id', $sucursal->id)
+                        ->where('activo', true)
+                        ->count(),
+                    'existencia' => Inventario::where('sucursal_id', $sucursal->id)
+                        ->where('activo', true)
+                        ->sum('existencia'),
                     'ventas' => Venta::where('sucursal_id', $sucursal->id)->count(),
                     'compras' => Compra::where('sucursal_id', $sucursal->id)->count(),
                     'cajas' => Caja::where('sucursal_id', $sucursal->id)->count(),
@@ -73,63 +73,57 @@ class PremiumModuleController extends Controller
     {
         $data = $request->validate([
             'sucursal_id' => ['required', 'integer', 'exists:sucursales,id'],
-            'confirmation' => ['required', 'string', 'in:BORRAR'],
+            'confirmation' => ['required', 'string', 'in:BORRAR INVENTARIO'],
         ]);
 
         $sucursal = Sucursal::findOrFail($data['sucursal_id']);
 
         $summary = [
-            'inventarios' => 0,
+            'inventarios_ocultados' => 0,
             'movimientos_inventario' => 0,
-            'ventas' => 0,
-            'compras' => 0,
-            'cajas' => 0,
-            'productos_desactivados' => 0,
+            'existencia_retirada' => 0,
+            'ventas_conservadas' => 0,
+            'compras_conservadas' => 0,
+            'cajas_conservadas' => 0,
         ];
 
         DB::transaction(function () use ($sucursal, &$summary) {
             $sucursalId = $sucursal->id;
 
-            $ventaIds = Venta::where('sucursal_id', $sucursalId)->pluck('id');
-            $compraIds = Compra::where('sucursal_id', $sucursalId)->pluck('id');
-            $cajaIds = Caja::where('sucursal_id', $sucursalId)->pluck('id');
-            $productIds = Inventario::where('sucursal_id', $sucursalId)
-                ->pluck('producto_id')
-                ->unique()
-                ->values();
+            $summary['ventas_conservadas'] = Venta::where('sucursal_id', $sucursalId)->count();
+            $summary['compras_conservadas'] = Compra::where('sucursal_id', $sucursalId)->count();
+            $summary['cajas_conservadas'] = Caja::where('sucursal_id', $sucursalId)->count();
 
-            $summary['cajas'] = $cajaIds->count();
-            $summary['ventas'] = $ventaIds->count();
-            $summary['compras'] = $compraIds->count();
-            $summary['inventarios'] = Inventario::where('sucursal_id', $sucursalId)->count();
-            $summary['movimientos_inventario'] = MovimientoInventario::where('sucursal_id', $sucursalId)->count();
+            $inventarios = Inventario::where('sucursal_id', $sucursalId)
+                ->where('activo', true)
+                ->lockForUpdate()
+                ->get();
 
-            if ($cajaIds->isNotEmpty()) {
-                MovimientoCaja::whereIn('caja_id', $cajaIds)->delete();
-                Caja::whereIn('id', $cajaIds)->delete();
-            }
+            foreach ($inventarios as $inventario) {
+                $existenciaAnterior = (int) $inventario->existencia;
 
-            if ($ventaIds->isNotEmpty()) {
-                DetalleVenta::whereIn('venta_id', $ventaIds)->delete();
-                Venta::whereIn('id', $ventaIds)->delete();
-            }
+                $inventario->update([
+                    'activo' => false,
+                    'existencia' => 0,
+                ]);
 
-            if ($compraIds->isNotEmpty()) {
-                DetalleCompra::whereIn('compra_id', $compraIds)->delete();
-                Compra::whereIn('id', $compraIds)->delete();
-            }
+                $summary['inventarios_ocultados']++;
+                $summary['existencia_retirada'] += $existenciaAnterior;
 
-            MovimientoInventario::where('sucursal_id', $sucursalId)->delete();
-            Inventario::where('sucursal_id', $sucursalId)->delete();
+                if ($existenciaAnterior > 0) {
+                    MovimientoInventario::create([
+                        'producto_id' => $inventario->producto_id,
+                        'sucursal_id' => $sucursalId,
+                        'user_id' => auth()->id(),
+                        'tipo_movimiento' => 'AJUSTE_SALIDA',
+                        'cantidad' => $existenciaAnterior,
+                        'existencia_anterior' => $existenciaAnterior,
+                        'existencia_nueva' => 0,
+                        'referencia' => 'Borrado seguro de inventario',
+                        'observacion' => 'Producto ocultado por Super Usuario sin borrar ventas, cajas ni historial.',
+                    ]);
 
-            if ($productIds->isNotEmpty()) {
-                $orphanProductIds = Producto::whereIn('id', $productIds)
-                    ->whereDoesntHave('inventarios')
-                    ->pluck('id');
-
-                if ($orphanProductIds->isNotEmpty()) {
-                    $summary['productos_desactivados'] = Producto::whereIn('id', $orphanProductIds)
-                        ->update(['estado' => false]);
+                    $summary['movimientos_inventario']++;
                 }
             }
         });
@@ -138,7 +132,7 @@ class PremiumModuleController extends Controller
             ->route('premium.index')
             ->with(
                 'success',
-                "Sucursal {$sucursal->nombre} limpiada. Inventarios: {$summary['inventarios']}. Movimientos: {$summary['movimientos_inventario']}. Ventas: {$summary['ventas']}. Compras: {$summary['compras']}. Cajas: {$summary['cajas']}. Productos desactivados sin otra sucursal: {$summary['productos_desactivados']}."
+                "Borrado seguro aplicado en {$sucursal->nombre}. Inventarios ocultados: {$summary['inventarios_ocultados']}. Existencia retirada: {$summary['existencia_retirada']}. Movimientos creados: {$summary['movimientos_inventario']}. Ventas conservadas: {$summary['ventas_conservadas']}. Compras conservadas: {$summary['compras_conservadas']}. Cajas conservadas: {$summary['cajas_conservadas']}."
             );
     }
 }
