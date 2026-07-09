@@ -46,6 +46,28 @@
 
             </div>
 
+            @if(auth()->user()->hasRole('Super Usuario') && $sucursales->isNotEmpty())
+                <div class="mb-4 rounded border border-emerald-200 bg-white p-4 shadow">
+                    <div class="mb-3">
+                        <h3 class="font-bold text-gray-800">
+                            Descarga de ventas por sucursal
+                        </h3>
+                        <p class="text-sm text-gray-500">
+                            Disponible solo para Super Usuario. Incluye resumen de ventas y detalle por producto.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        @foreach($sucursales as $sucursal)
+                            <a href="{{ route('ventas.sucursales.descargar', $sucursal) }}"
+                               class="rounded bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                                Descargar {{ $sucursal->nombre }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <div class="bg-white shadow rounded p-4 overflow-x-auto">
 
                 <table class="w-full border text-sm">

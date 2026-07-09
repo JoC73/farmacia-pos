@@ -8,12 +8,16 @@ use App\Models\Inventario;
 use App\Models\DetalleVenta;
 use App\Models\MovimientoInventario;
 use App\Models\Cliente;
+use App\Models\Sucursal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Models\Caja;
 use App\Models\MovimientoCaja;
+use Illuminate\Support\Str;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 
 
 class VentaController extends Controller
@@ -32,7 +36,111 @@ class VentaController extends Controller
         ->latest()
         ->paginate(20);
 
-        return view('ventas.index', compact('ventas'));
+        $sucursales = auth()->user()->hasRole('Super Usuario')
+            ? Sucursal::where('estado', true)->orderBy('nombre')->get()
+            : collect();
+
+        return view('ventas.index', compact('ventas', 'sucursales'));
+    }
+
+    public function descargarSucursal(Sucursal $sucursal)
+    {
+        abort_unless(auth()->user()->hasRole('Super Usuario'), 403);
+        abort_unless($sucursal->estado, 404);
+
+        $ventas = Venta::with([
+            'usuario',
+            'cliente',
+            'sucursal',
+            'detalles.producto.inventarios' => fn ($query) => $query->where('sucursal_id', $sucursal->id),
+            'anulador',
+        ])
+            ->where('sucursal_id', $sucursal->id)
+            ->orderBy('created_at')
+            ->get();
+
+        $filename = 'ventas-' . Str::slug($sucursal->nombre) . '-' . now()->format('Ymd-His') . '.xlsx';
+        $path = storage_path('app/' . $filename);
+        $writer = new XlsxWriter();
+
+        $writer->openToFile($path);
+
+        $writer->getCurrentSheet()->setName('Ventas');
+        $writer->addRow(Row::fromValues([
+            'factura',
+            'fecha',
+            'sucursal',
+            'cliente',
+            'usuario',
+            'subtotal',
+            'descuento',
+            'total',
+            'estado',
+            'anulada_por',
+            'fecha_anulacion',
+            'motivo_anulacion',
+        ]));
+
+        foreach ($ventas as $venta) {
+            $writer->addRow(Row::fromValues([
+                $venta->numero_factura,
+                optional($venta->created_at)->format('Y-m-d H:i:s'),
+                $venta->sucursal?->nombre,
+                $venta->cliente?->nombre ?? 'Consumidor Final',
+                $venta->usuario?->name,
+                (float) $venta->subtotal,
+                (float) $venta->descuento,
+                (float) $venta->total,
+                $venta->estado,
+                $venta->anulador?->name,
+                optional($venta->fecha_anulacion)->format('Y-m-d H:i:s'),
+                $venta->motivo_anulacion,
+            ]));
+        }
+
+        $detalleSheet = $writer->addNewSheetAndMakeItCurrent();
+        $detalleSheet->setName('Detalle');
+        $writer->addRow(Row::fromValues([
+            'factura',
+            'fecha',
+            'sucursal',
+            'producto',
+            'producto_catalogo',
+            'codigo_barra',
+            'cantidad',
+            'precio_unitario',
+            'subtotal',
+            'estado_venta',
+        ]));
+
+        foreach ($ventas as $venta) {
+            foreach ($venta->detalles as $detalle) {
+                $producto = $detalle->producto;
+                $inventarioLocal = $producto?->inventarios?->first();
+                $nombreLocal = $inventarioLocal?->nombre_mostrado ?? $producto?->nombre ?? 'Producto eliminado';
+
+                $writer->addRow(Row::fromValues([
+                    $venta->numero_factura,
+                    optional($venta->created_at)->format('Y-m-d H:i:s'),
+                    $venta->sucursal?->nombre,
+                    $nombreLocal,
+                    $producto?->nombre,
+                    $producto?->codigo_barra,
+                    (int) $detalle->cantidad,
+                    (float) $detalle->precio_unitario,
+                    (float) $detalle->subtotal,
+                    $venta->estado,
+                ]));
+            }
+        }
+
+        $writer->close();
+
+        return response()
+            ->download($path, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend(true);
     }
 
     public function create()

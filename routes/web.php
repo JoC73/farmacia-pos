@@ -167,6 +167,10 @@ Route::middleware('auth')->group(function () {
         ->name('ventas.store')
         ->middleware('permission:ventas.crear');
 
+    Route::get('/ventas/sucursales/{sucursal}/descargar', [VentaController::class, 'descargarSucursal'])
+        ->name('ventas.sucursales.descargar')
+        ->middleware(['permission:ventas.ver', 'role:Super Usuario']);
+
     
     /*
 |--------------------------------------------------------------------------
