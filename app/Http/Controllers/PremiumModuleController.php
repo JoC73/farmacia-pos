@@ -8,6 +8,7 @@ use App\Models\Inventario;
 use App\Models\MovimientoInventario;
 use App\Models\PremiumModule;
 use App\Models\Sucursal;
+use App\Models\Venta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
