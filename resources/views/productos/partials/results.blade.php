@@ -96,6 +96,13 @@
                         @elseif($canAdjustLocalInventory)
                             @if($localInventario)
                                 <div class="flex flex-wrap gap-2">
+                                    @if($canChangeLocalPrices)
+                                        <a href="{{ route('productos.edit', $producto) }}"
+                                           class="inline-flex rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700">
+                                            Precio
+                                        </a>
+                                    @endif
+
                                     <a href="{{ route('inventarios.ajustar', $localInventario) }}"
                                        class="inline-flex rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700">
                                         Stock

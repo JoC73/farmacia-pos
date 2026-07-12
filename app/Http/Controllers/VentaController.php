@@ -178,7 +178,8 @@ class VentaController extends Controller
         }
 
         $sucursalId = (int) auth()->user()->sucursal_id;
-        $cacheKey = 'pos_search:v3:'.$sucursalId.':'.md5(mb_strtolower($search));
+        $cacheVersion = Cache::get('pos_search_version:'.$sucursalId, 1);
+        $cacheKey = 'pos_search:v4:'.$sucursalId.':'.$cacheVersion.':'.md5(mb_strtolower($search));
 
         return response()->json(
             Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {

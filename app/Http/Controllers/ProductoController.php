@@ -8,6 +8,7 @@ use App\Models\Inventario;
 use App\Models\MovimientoInventario;
 use App\Models\Sucursal;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ProductoController extends Controller
@@ -71,13 +72,15 @@ class ProductoController extends Controller
             && ! $canManageGlobalProducts
             && auth()->user()->can('inventario.ajustar')
             && $sucursalId;
+        $canChangeLocalPrices = $this->canChangeLocalPrices();
 
         if ($request->ajax()) {
             return view('productos.partials.results', compact(
                 'productos',
                 'canCreateProducts',
                 'canManageGlobalProducts',
-                'canAdjustLocalInventory'
+                'canAdjustLocalInventory',
+                'canChangeLocalPrices'
             ));
         }
 
@@ -89,7 +92,8 @@ class ProductoController extends Controller
             'categoriaId',
             'canCreateProducts',
             'canManageGlobalProducts',
-            'canAdjustLocalInventory'
+            'canAdjustLocalInventory',
+            'canChangeLocalPrices'
         ));
     }
 
@@ -219,7 +223,15 @@ class ProductoController extends Controller
 
     public function edit(Producto $producto)
     {
-        $this->authorizeGlobalProductManagement();
+        if (! $this->canManageGlobalProducts()) {
+            $inventario = $this->localInventoryForUser($producto);
+            abort_unless($inventario && $this->canChangeLocalPrices(), 403);
+
+            return view('productos.edit-local-price', compact(
+                'producto',
+                'inventario'
+            ));
+        }
 
         $categorias = Categoria::where('estado', true)
             ->orderBy('nombre')
@@ -238,7 +250,9 @@ class ProductoController extends Controller
 
     public function update(Request $request, Producto $producto)
     {
-        $this->authorizeGlobalProductManagement();
+        if (! $this->canManageGlobalProducts()) {
+            return $this->updateLocalPrice($request, $producto);
+        }
 
         $request->validate([
 
@@ -270,7 +284,9 @@ class ProductoController extends Controller
 
         ]);
 
-        DB::transaction(function () use ($request, $producto) {
+        $affectedSucursalIds = [];
+
+        DB::transaction(function () use ($request, $producto, &$affectedSucursalIds) {
             $producto->update([
 
                 'categoria_id' => $request->categoria_id,
@@ -295,8 +311,10 @@ class ProductoController extends Controller
 
             ]);
 
-            $this->syncLocalInventoriesFromProduct($request, $producto);
+            $affectedSucursalIds = $this->syncLocalInventoriesFromProduct($request, $producto);
         });
+
+        $this->refreshSearchCaches($affectedSucursalIds);
 
         return redirect()
             ->route('productos.index')
@@ -337,6 +355,52 @@ class ProductoController extends Controller
         return auth()->user()->hasAnyRole(['Administrador Global', 'Super Usuario']);
     }
 
+    private function canChangeLocalPrices(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('Administrador')
+            && $user->can('productos.cambiar_precio')
+            && ! $user->canViewAllSucursales()
+            && (bool) $user->sucursal_id;
+    }
+
+    private function localInventoryForUser(Producto $producto): ?Inventario
+    {
+        $sucursalId = auth()->user()->sucursal_id;
+
+        if (! $sucursalId) {
+            return null;
+        }
+
+        return Inventario::where('producto_id', $producto->id)
+            ->where('sucursal_id', $sucursalId)
+            ->where('activo', true)
+            ->first();
+    }
+
+    private function updateLocalPrice(Request $request, Producto $producto)
+    {
+        abort_unless($this->canChangeLocalPrices(), 403);
+
+        $inventario = $this->localInventoryForUser($producto);
+        abort_unless($inventario, 404);
+
+        $data = $request->validate([
+            'precio_venta' => 'required|numeric|min:0',
+        ]);
+
+        $inventario->update([
+            'precio_venta_local' => $data['precio_venta'],
+        ]);
+
+        $this->refreshSearchCaches([(int) $inventario->sucursal_id]);
+
+        return redirect()
+            ->route('productos.index')
+            ->with('success', 'Precio actualizado para ' . ($inventario->sucursal->nombre ?? 'tu sucursal') . '. El nuevo precio ya aplica en ventas.');
+    }
+
     private function targetSucursalForCreation(Request $request): Sucursal
     {
         if (auth()->user()->canViewAllSucursales()) {
@@ -353,12 +417,18 @@ class ProductoController extends Controller
         return in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
     }
 
-    private function syncLocalInventoriesFromProduct(Request $request, Producto $producto): void
+    private function syncLocalInventoriesFromProduct(Request $request, Producto $producto): array
     {
         $mode = $request->input('aplicar_en_sucursales', 'catalogo');
 
         if ($mode === 'catalogo') {
-            return;
+            return Inventario::where('producto_id', $producto->id)
+                ->where('activo', true)
+                ->pluck('sucursal_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
         }
 
         $query = Inventario::where('producto_id', $producto->id)
@@ -372,10 +442,21 @@ class ProductoController extends Controller
                 ->all();
 
             if (empty($sucursalIds)) {
-                return;
+                return [];
             }
 
             $query->whereIn('sucursal_id', $sucursalIds);
+        }
+
+        $affectedSucursalIds = (clone $query)
+            ->pluck('sucursal_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($affectedSucursalIds)) {
+            return [];
         }
 
         $query->update([
@@ -388,6 +469,18 @@ class ProductoController extends Controller
             'descripcion_local' => $producto->descripcion,
             'fecha_vencimiento' => $producto->fecha_vencimiento,
         ]);
+
+        return $affectedSucursalIds;
+    }
+
+    private function refreshSearchCaches(array $sucursalIds): void
+    {
+        foreach (array_unique($sucursalIds) as $sucursalId) {
+            $version = now()->format('Uu');
+
+            Cache::forever('pos_search_version:' . $sucursalId, $version);
+            Cache::forever('purchase_search_version:' . $sucursalId, $version);
+        }
     }
 
     private function productUpdateMessage(Request $request): string

@@ -76,7 +76,8 @@ class CompraController extends Controller
         }
 
         $sucursalId = (int) auth()->user()->sucursal_id;
-        $cacheKey = 'purchase_search:v3:'.$sucursalId.':'.md5(mb_strtolower($search));
+        $cacheVersion = Cache::get('purchase_search_version:'.$sucursalId, 1);
+        $cacheKey = 'purchase_search:v4:'.$sucursalId.':'.$cacheVersion.':'.md5(mb_strtolower($search));
 
         return response()->json(
             Cache::remember($cacheKey, now()->addSeconds(8), function () use ($search) {

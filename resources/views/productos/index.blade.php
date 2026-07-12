@@ -104,6 +104,7 @@
                     'canCreateProducts' => $canCreateProducts,
                     'canManageGlobalProducts' => $canManageGlobalProducts,
                     'canAdjustLocalInventory' => $canAdjustLocalInventory,
+                    'canChangeLocalPrices' => $canChangeLocalPrices,
                 ])
             </div>
 
