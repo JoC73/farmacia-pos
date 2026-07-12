@@ -225,9 +225,14 @@ class ProductoController extends Controller
             ->orderBy('nombre')
             ->get();
 
+        $sucursales = Sucursal::where('estado', true)
+            ->orderBy('nombre')
+            ->get();
+
         return view('productos.edit', compact(
             'producto',
-            'categorias'
+            'categorias',
+            'sucursales'
         ));
     }
 
@@ -257,35 +262,45 @@ class ProductoController extends Controller
 
             'estado' => 'nullable|boolean',
 
-        ]);
+            'aplicar_en_sucursales' => 'required|in:catalogo,todas,seleccionadas',
 
-        $producto->update([
+            'sucursal_ids' => 'required_if:aplicar_en_sucursales,seleccionadas|array',
 
-            'categoria_id' => $request->categoria_id,
-
-            'codigo_barra' => $request->codigo_barra,
-
-            'nombre' => $request->nombre,
-
-            'laboratorio' => $request->laboratorio,
-
-            'costo' => $request->costo,
-
-            'precio_venta' => $request->precio_venta,
-
-            'stock_minimo' => $request->stock_minimo,
-
-            'fecha_vencimiento' => $request->fecha_vencimiento,
-
-            'descripcion' => $request->descripcion,
-
-            'estado' => $request->has('estado'),
+            'sucursal_ids.*' => 'integer|exists:sucursales,id',
 
         ]);
+
+        DB::transaction(function () use ($request, $producto) {
+            $producto->update([
+
+                'categoria_id' => $request->categoria_id,
+
+                'codigo_barra' => $request->codigo_barra,
+
+                'nombre' => $request->nombre,
+
+                'laboratorio' => $request->laboratorio,
+
+                'costo' => $request->costo,
+
+                'precio_venta' => $request->precio_venta,
+
+                'stock_minimo' => $request->stock_minimo,
+
+                'fecha_vencimiento' => $request->fecha_vencimiento,
+
+                'descripcion' => $request->descripcion,
+
+                'estado' => $request->has('estado'),
+
+            ]);
+
+            $this->syncLocalInventoriesFromProduct($request, $producto);
+        });
 
         return redirect()
             ->route('productos.index')
-            ->with('success', 'Producto actualizado correctamente.');
+            ->with('success', $this->productUpdateMessage($request));
     }
 
     public function destroy(Producto $producto)
@@ -336,5 +351,51 @@ class ProductoController extends Controller
     private function validPerPage(int $perPage): int
     {
         return in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
+    }
+
+    private function syncLocalInventoriesFromProduct(Request $request, Producto $producto): void
+    {
+        $mode = $request->input('aplicar_en_sucursales', 'catalogo');
+
+        if ($mode === 'catalogo') {
+            return;
+        }
+
+        $query = Inventario::where('producto_id', $producto->id)
+            ->where('activo', true);
+
+        if ($mode === 'seleccionadas') {
+            $sucursalIds = collect($request->input('sucursal_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            if (empty($sucursalIds)) {
+                return;
+            }
+
+            $query->whereIn('sucursal_id', $sucursalIds);
+        }
+
+        $query->update([
+            'nombre_local' => $producto->nombre,
+            'categoria_local' => $producto->categoria?->nombre,
+            'laboratorio_local' => $producto->laboratorio,
+            'costo_local' => $producto->costo,
+            'precio_venta_local' => $producto->precio_venta,
+            'stock_minimo_local' => $producto->stock_minimo,
+            'descripcion_local' => $producto->descripcion,
+            'fecha_vencimiento' => $producto->fecha_vencimiento,
+        ]);
+    }
+
+    private function productUpdateMessage(Request $request): string
+    {
+        return match ($request->input('aplicar_en_sucursales')) {
+            'todas' => 'Producto actualizado y replicado en las sucursales donde ya existía.',
+            'seleccionadas' => 'Producto actualizado y replicado en las sucursales seleccionadas donde ya existía.',
+            default => 'Producto actualizado solo en catálogo global.',
+        };
     }
 }
