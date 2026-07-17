@@ -25,6 +25,13 @@ class CajaController extends Controller
         ->latest()
         ->paginate(20);
 
+        $cajas->getCollection()->each(function (Caja $caja) {
+            $resumen = $this->resumenOperativoCaja($caja);
+
+            $caja->setAttribute('total_sistema_mostrado', $resumen['disponible']);
+            $caja->setAttribute('diferencia_mostrada', $caja->estado === 'CERRADA' ? (float) $caja->diferencia : 0);
+        });
+
         $cajaAbiertaActual = null;
 
         if ($sucursalId) {
@@ -233,12 +240,12 @@ class CajaController extends Controller
                 ->with('error', 'La caja ya está cerrada.');
         }
 
-        $ventas = $this->ventasRegistradas($caja);
-
-        $egresos = $this->egresosRegistrados($caja);
-        $transferencias = $this->transferenciasRegistradas($caja);
-        $salidas = $egresos + $transferencias;
-        $totalSistema = $caja->monto_apertura + $ventas - $salidas;
+        $resumen = $this->resumenOperativoCaja($caja);
+        $ventas = $resumen['ventas'];
+        $egresos = $resumen['egresos'];
+        $transferencias = $resumen['transferencias'];
+        $salidas = $resumen['salidas'];
+        $totalSistema = $resumen['disponible'];
 
         return view('cajas.cierre', compact(
             'caja',
@@ -271,12 +278,8 @@ class CajaController extends Controller
 
     DB::transaction(function () use ($request, $caja) {
 
-        $ventas = $this->ventasRegistradas($caja);
-
-        $salidas = $this->salidasRegistradas($caja);
-
-        $totalSistema =
-            $caja->monto_apertura + $ventas - $salidas;
+        $resumen = $this->resumenOperativoCaja($caja);
+        $totalSistema = $resumen['disponible'];
 
         $diferencia =
             $request->monto_cierre - $totalSistema;
@@ -392,8 +395,8 @@ class CajaController extends Controller
         ]);
 
         return redirect()
-            ->route('cajas.show', $caja)
-            ->with('success', 'Transferencia a jefe registrada correctamente.');
+            ->route('cajas.index')
+            ->with('success', 'Transferencia a jefe registrada correctamente. El disponible de la sucursal fue actualizado.');
     }
 
     public function show(Caja $caja)
@@ -407,15 +410,22 @@ class CajaController extends Controller
             'movimientos.usuario',
         ]);
 
-        $ventas = $this->ventasRegistradas($caja);
-        $egresos = $this->egresosRegistrados($caja);
-        $transferencias = $this->transferenciasRegistradas($caja);
+        $resumen = $this->resumenOperativoCaja($caja);
+        $ventas = $resumen['ventas'];
+        $egresos = $resumen['egresos'];
+        $transferencias = $resumen['transferencias'];
+        $totalSistema = $resumen['disponible'];
+        $diferencia = $caja->estado === 'CERRADA'
+            ? (float) $caja->diferencia
+            : 0;
 
         return view('cajas.show', compact(
             'caja',
             'ventas',
             'egresos',
-            'transferencias'
+            'transferencias',
+            'totalSistema',
+            'diferencia'
         ));
     }
 
@@ -554,6 +564,13 @@ class CajaController extends Controller
             'disponible' => max(0, $apertura + $ventasMes - $salidasMes),
             'periodo' => now()->format('m/Y'),
         ];
+    }
+
+    private function resumenOperativoCaja(Caja $caja): array
+    {
+        return $caja->estado === 'ABIERTA'
+            ? $this->resumenTransferenciaJefe($caja)
+            : $this->resumenCaja($caja);
     }
 
     private function ultimaCajaCerrada(int $sucursalId): ?Caja

@@ -32,15 +32,19 @@
 
                 </div>
 
-                <!-- VENTAS MES -->
+                <!-- DISPONIBLE MES -->
                 <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-blue-500">
 
                     <div class="text-xs sm:text-sm text-gray-500">
-                        Ventas del Mes
+                        Disponible del Mes
                     </div>
 
                     <div class="text-2xl sm:text-3xl font-bold text-blue-600 mt-2 leading-tight">
                         Q {{ number_format($ventasMes, 2) }}
+                    </div>
+
+                    <div class="mt-2 text-xs text-gray-500">
+                        Transferido: Q {{ number_format($transferenciasMes, 2) }}
                     </div>
 
                 </div>

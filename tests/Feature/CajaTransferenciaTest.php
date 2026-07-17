@@ -61,7 +61,7 @@ class CajaTransferenciaTest extends TestCase
                 'descripcion' => 'Transferencia mensual',
             ]);
 
-        $response->assertRedirect(route('cajas.show', $caja));
+        $response->assertRedirect(route('cajas.index'));
 
         $this->assertDatabaseHas('movimiento_cajas', [
             'caja_id' => $caja->id,
@@ -205,7 +205,7 @@ class CajaTransferenciaTest extends TestCase
                 'descripcion' => 'Transferencia mensual aislada',
             ]);
 
-        $response->assertRedirect(route('cajas.show', $caja));
+        $response->assertRedirect(route('cajas.index'));
 
         $this->assertDatabaseHas('movimiento_cajas', [
             'caja_id' => $caja->id,
@@ -214,15 +214,76 @@ class CajaTransferenciaTest extends TestCase
         ]);
     }
 
+    public function test_cierre_usa_disponible_despues_de_transferencia_mensual(): void
+    {
+        $sucursal = Sucursal::create([
+            'nombre' => 'FarmaVida Mazate',
+            'estado' => true,
+        ]);
+
+        $user = User::factory()->create()->forceFill([
+            'sucursal_id' => $sucursal->id,
+            'estado' => true,
+        ]);
+        $user->save();
+        $this->giveSalesPermission($user);
+
+        $caja = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => 100,
+            'fecha_apertura' => now(),
+            'estado' => 'ABIERTA',
+        ]);
+
+        Venta::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'numero_factura' => 'FAC-CIERRE-1',
+            'subtotal' => 3627.25,
+            'descuento' => 0,
+            'total' => 3627.25,
+            'estado' => 'FINALIZADA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'TRANSFERENCIA_JEFE',
+            'monto' => 1100,
+            'fecha_movimiento' => now(),
+            'referencia' => 'BOLETA-1100',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->post(route('cajas.cierre.store', $caja), [
+                'monto_cierre' => 2627.25,
+                'observacion' => 'Cierre despues de transferencia',
+            ]);
+
+        $response->assertRedirect(route('cajas.index'));
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $caja->id,
+            'estado' => 'CERRADA',
+            'monto_cierre' => 2627.25,
+            'total_sistema' => 2627.25,
+            'diferencia' => 0,
+        ]);
+    }
+
     private function giveSalesPermission(User $user): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $permission = Permission::firstOrCreate([
-            'name' => 'ventas.crear',
-            'guard_name' => 'web',
-        ]);
+        foreach (['ventas.crear', 'caja.cerrar'] as $permissionName) {
+            $permission = Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
 
-        $user->givePermissionTo($permission);
+            $user->givePermissionTo($permission);
+        }
     }
 }

@@ -135,8 +135,8 @@
                                 <td class="p-2 border">
                                     {{ $caja->monto_cierre !== null ? 'Q '.number_format($caja->monto_cierre, 2) : '-' }}
                                 </td>
-                                <td class="p-2 border">Q {{ number_format($caja->total_sistema, 2) }}</td>
-                                <td class="p-2 border">Q {{ number_format($caja->diferencia, 2) }}</td>
+                                <td class="p-2 border">Q {{ number_format($caja->total_sistema_mostrado ?? $caja->total_sistema, 2) }}</td>
+                                <td class="p-2 border">Q {{ number_format($caja->diferencia_mostrada ?? $caja->diferencia, 2) }}</td>
                                 <td class="p-2 border">
                                     @if($caja->estado === 'ABIERTA')
                                         <span class="text-green-600 font-bold">ABIERTA</span>

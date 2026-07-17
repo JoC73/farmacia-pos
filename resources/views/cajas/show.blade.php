@@ -38,12 +38,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
                         <strong>Usuario:</strong><br>
-                        {{ $caja->usuario->name }}
+                        {{ $caja->usuario->name ?? 'Usuario eliminado' }}
                     </div>
 
                     <div>
                         <strong>Sucursal:</strong><br>
-                        {{ $caja->sucursal->nombre }}
+                        {{ $caja->sucursal->nombre ?? 'Sucursal eliminada' }}
                     </div>
 
                     <div>
@@ -89,12 +89,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Sistema</div>
-                        <div class="text-xl font-bold">Q {{ number_format($caja->total_sistema, 2) }}</div>
+                        <div class="text-xl font-bold">Q {{ number_format($totalSistema, 2) }}</div>
                     </div>
 
                     <div class="p-4 bg-gray-100 rounded">
                         <div class="text-sm text-gray-500">Diferencia</div>
-                        <div class="text-xl font-bold">Q {{ number_format($caja->diferencia, 2) }}</div>
+                        <div class="text-xl font-bold">Q {{ number_format($diferencia, 2) }}</div>
                     </div>
                 </div>
 
@@ -122,7 +122,7 @@
                                     <td class="p-2 border">{{ $movimiento->descripcion ?? '-' }}</td>
                                     <td class="p-2 border">{{ $movimiento->usuario->name ?? '-' }}</td>
                                     <td class="p-2 border">
-                                        {{ ($movimiento->fecha_movimiento ?? $movimiento->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
+                                        {{ optional($movimiento->fecha_movimiento ?? $movimiento->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '-' }}
                                     </td>
                                 </tr>
                             @empty
