@@ -45,6 +45,12 @@
                                style="background-color: #047857;">
                                 Ver Caja
                             </a>
+
+                            <a href="{{ route('cajas.transferencia', $cajaAbiertaActual) }}"
+                               class="px-4 py-2 rounded text-white"
+                               style="background-color: #059669;">
+                                Transferir
+                            </a>
                         </div>
                     </div>
                 @else

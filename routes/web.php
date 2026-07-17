@@ -239,7 +239,7 @@ Route::get('/compras/{compra}', [CompraController::class, 'show'])
 */
 Route::get('/cajas', [CajaController::class, 'index'])
     ->name('cajas.index')
-    ->middleware('permission:caja.abrir|caja.ver_cierres');
+    ->middleware('permission:caja.abrir|ventas.crear|caja.ver_cierres');
 
 Route::get('/cajas/apertura', [CajaController::class, 'createApertura'])
     ->name('cajas.apertura')
@@ -267,15 +267,15 @@ Route::post('/cajas/{caja}/egreso', [CajaController::class, 'storeEgreso'])
 
 Route::get('/cajas/{caja}/transferencia', [CajaController::class, 'createTransferencia'])
     ->name('cajas.transferencia')
-    ->middleware('permission:caja.abrir');
+    ->middleware('permission:caja.abrir|ventas.crear|caja.ver_cierres');
 
 Route::post('/cajas/{caja}/transferencia', [CajaController::class, 'storeTransferencia'])
     ->name('cajas.transferencia.store')
-    ->middleware('permission:caja.abrir');
+    ->middleware('permission:caja.abrir|ventas.crear|caja.ver_cierres');
 
 Route::get('/cajas/{caja}', [CajaController::class, 'show'])
     ->name('cajas.show')
-    ->middleware('permission:caja.abrir|caja.ver_cierres');
+    ->middleware('permission:caja.abrir|ventas.crear|caja.ver_cierres');
 
 /*
 |--------------------------------------------------------------------------

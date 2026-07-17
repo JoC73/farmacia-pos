@@ -12,7 +12,7 @@
                     <div>
                         <h3 class="text-lg font-bold text-gray-800">Registrar transferencia</h3>
                         <p class="text-sm text-gray-500">
-                            Registra efectivo enviado al jefe. El monto se descuenta del cierre y del saldo que se trasladara a la siguiente apertura.
+                            Registra efectivo enviado al jefe con base en ventas del mes y saldo inicial de caja.
                         </p>
                     </div>
 
@@ -45,34 +45,34 @@
                     </div>
 
                     <div class="p-4 bg-emerald-50 rounded">
-                        <div class="text-sm text-emerald-700">Efectivo total disponible</div>
+                        <div class="text-sm text-emerald-700">Disponible para transferir</div>
                         <div class="text-xl font-bold text-emerald-800">Q {{ number_format($disponible, 2) }}</div>
                     </div>
                 </div>
 
                 <div class="mb-6 rounded border border-gray-200 overflow-hidden">
                     <div class="bg-gray-50 px-4 py-3 font-bold text-gray-800">
-                        Composicion del efectivo disponible
+                        Composicion del monto a transferir - {{ $resumen['periodo'] ?? now()->format('m/Y') }}
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-5 text-sm">
                         <div class="p-4 border-t sm:border-r">
-                            <div class="text-gray-500">Saldo inicial</div>
+                            <div class="text-gray-500">Saldo inicial caja</div>
                             <div class="font-bold">Q {{ number_format($resumen['apertura'], 2) }}</div>
                         </div>
 
                         <div class="p-4 border-t sm:border-r">
-                            <div class="text-gray-500">Ventas</div>
+                            <div class="text-gray-500">Ventas del mes</div>
                             <div class="font-bold text-emerald-700">+ Q {{ number_format($resumen['ventas'], 2) }}</div>
                         </div>
 
                         <div class="p-4 border-t sm:border-r">
-                            <div class="text-gray-500">Egresos</div>
+                            <div class="text-gray-500">Egresos del mes</div>
                             <div class="font-bold text-red-700">- Q {{ number_format($resumen['egresos'], 2) }}</div>
                         </div>
 
                         <div class="p-4 border-t sm:border-r">
-                            <div class="text-gray-500">Transferido</div>
+                            <div class="text-gray-500">Transferido en el mes</div>
                             <div class="font-bold text-red-700">- Q {{ number_format($resumen['transferencias'], 2) }}</div>
                         </div>
 
@@ -81,6 +81,11 @@
                             <div class="font-bold text-emerald-800">Q {{ number_format($resumen['disponible'], 2) }}</div>
                         </div>
                     </div>
+                </div>
+
+                <div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                    El disponible se calcula como ventas finalizadas del mes mas saldo inicial de esta caja,
+                    menos egresos y transferencias ya registradas en el mes para esta sucursal.
                 </div>
 
                 <form method="POST" action="{{ route('cajas.transferencia.store', $caja) }}">

@@ -152,8 +152,20 @@ class ReporteController extends Controller
 
             $egresosMes = MovimientoCaja::where('tipo', 'EGRESO')
                 ->whereHas('caja', fn ($query) => $query->where('sucursal_id', $sucursal->id))
-                ->whereMonth('created_at', now()->month)
-                ->whereYear('created_at', now()->year)
+                ->where(function ($query) {
+                    $query
+                        ->where(function ($fechaMovimiento) {
+                            $fechaMovimiento
+                                ->whereMonth('fecha_movimiento', now()->month)
+                                ->whereYear('fecha_movimiento', now()->year);
+                        })
+                        ->orWhere(function ($fallback) {
+                            $fallback
+                                ->whereNull('fecha_movimiento')
+                                ->whereMonth('created_at', now()->month)
+                                ->whereYear('created_at', now()->year);
+                        });
+                })
                 ->sum('monto');
 
             $transferenciasMes = MovimientoCaja::where('tipo', 'TRANSFERENCIA_JEFE')

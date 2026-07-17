@@ -29,7 +29,8 @@ return new class extends Migration
                 'COMPRA',
                 'APERTURA',
                 'CIERRE',
-                'AJUSTE'
+                'AJUSTE',
+                'TRANSFERENCIA_JEFE'
 
             ]);
 
