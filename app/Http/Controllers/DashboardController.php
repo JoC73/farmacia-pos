@@ -6,6 +6,8 @@ use App\Models\Caja;
 use App\Models\Compra;
 use App\Models\DetalleVenta;
 use App\Models\Inventario;
+use App\Models\MovimientoCaja;
+use App\Models\Sucursal;
 use App\Models\Venta;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +41,8 @@ class DashboardController extends Controller
         $cajasAbiertas = Caja::where('estado', 'ABIERTA')
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->count();
+
+        [$saldoCajaActual, $estadoSaldoCaja] = $this->saldoCajaActual($sucursalId);
 
         $productosPorVencer = Inventario::with(['producto', 'sucursal'])
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
@@ -86,10 +90,62 @@ class DashboardController extends Controller
             'ventasMes',
             'comprasMes',
             'cajasAbiertas',
+            'saldoCajaActual',
+            'estadoSaldoCaja',
             'productosPorVencer',
             'productosVencidos',
             'topProductos',
             'scopeLabel'
         ));
+    }
+
+    private function saldoCajaActual(?int $sucursalId): array
+    {
+        if ($sucursalId) {
+            $caja = $this->ultimaCajaSucursal($sucursalId);
+
+            return [
+                $caja ? $this->saldoCaja($caja) : 0,
+                $caja ? $caja->estado : 'SIN CAJA',
+            ];
+        }
+
+        $total = Sucursal::where('estado', true)
+            ->get()
+            ->sum(function (Sucursal $sucursal) {
+                $caja = $this->ultimaCajaSucursal($sucursal->id);
+
+                return $caja ? $this->saldoCaja($caja) : 0;
+            });
+
+        return [(float) $total, 'TODAS'];
+    }
+
+    private function ultimaCajaSucursal(int $sucursalId): ?Caja
+    {
+        return Caja::where('sucursal_id', $sucursalId)
+            ->latest('fecha_apertura')
+            ->latest('id')
+            ->first();
+    }
+
+    private function saldoCaja(Caja $caja): float
+    {
+        if ($caja->estado === 'CERRADA' && $caja->monto_cierre !== null) {
+            return (float) $caja->monto_cierre;
+        }
+
+        $ventas = $this->sumMovimientosCaja($caja, ['VENTA']);
+        $egresos = $this->sumMovimientosCaja($caja, ['EGRESO']);
+        $transferencias = $this->sumMovimientosCaja($caja, ['TRANSFERENCIA_JEFE']);
+
+        return (float) $caja->monto_apertura + $ventas - $egresos - $transferencias;
+    }
+
+    private function sumMovimientosCaja(Caja $caja, array $tipos): float
+    {
+        return (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->whereIn('tipo', $tipos)
+            ->sum('monto');
     }
 }

@@ -17,7 +17,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             <!-- TARJETAS -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6 mb-6">
 
                 <!-- VENTAS HOY -->
                 <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-green-500">
@@ -28,6 +28,23 @@
 
                     <div class="text-2xl sm:text-3xl font-bold text-green-600 mt-2 leading-tight">
                         Q {{ number_format($ventasHoy, 2) }}
+                    </div>
+
+                </div>
+
+                <!-- SALDO DE CAJA -->
+                <div class="bg-white shadow rounded p-4 sm:p-6 border-l-4 border-emerald-600">
+
+                    <div class="text-xs sm:text-sm text-gray-500">
+                        Saldo de Caja
+                    </div>
+
+                    <div class="text-2xl sm:text-3xl font-bold text-emerald-700 mt-2 leading-tight">
+                        Q {{ number_format($saldoCajaActual, 2) }}
+                    </div>
+
+                    <div class="mt-2 text-xs font-semibold text-gray-500">
+                        {{ $estadoSaldoCaja }}
                     </div>
 
                 </div>
