@@ -486,6 +486,96 @@ class CajaTransferenciaTest extends TestCase
         ]);
     }
 
+    public function test_migracion_concilia_cadena_de_caja_garibaldi(): void
+    {
+        $sucursal = Sucursal::create([
+            'nombre' => 'Farmacia Familiar M&C Garibaldi',
+            'estado' => true,
+        ]);
+
+        $user = User::factory()->create()->forceFill([
+            'sucursal_id' => $sucursal->id,
+            'estado' => true,
+        ]);
+        $user->save();
+
+        $cajaBase = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => 1464.25,
+            'monto_cierre' => 2940.50,
+            'total_sistema' => 1646.25,
+            'diferencia' => 1294.25,
+            'fecha_apertura' => now()->subDay(),
+            'fecha_cierre' => now(),
+            'estado' => 'CERRADA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaBase->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 182,
+            'fecha_movimiento' => now(),
+            'referencia' => 'VENTAS-GARIBALDI',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaBase->id,
+            'user_id' => $user->id,
+            'tipo' => 'CIERRE',
+            'monto' => 2940.50,
+            'fecha_movimiento' => now(),
+            'referencia' => 'CIERRE-DUPLICADO-GARIBALDI',
+        ]);
+
+        $cajaSiguiente = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => 2940.50,
+            'fecha_apertura' => now()->addDay(),
+            'estado' => 'ABIERTA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaSiguiente->id,
+            'user_id' => $user->id,
+            'tipo' => 'APERTURA',
+            'monto' => 2940.50,
+            'fecha_movimiento' => now()->addDay(),
+            'referencia' => 'APERTURA-DUPLICADA-GARIBALDI',
+        ]);
+
+        $migration = require database_path('migrations/2026_07_17_000005_conciliate_garibaldi_cash_chain.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $cajaBase->id,
+            'monto_cierre' => 1646.25,
+            'total_sistema' => 1646.25,
+            'diferencia' => 0,
+        ]);
+
+        $this->assertDatabaseHas('movimiento_cajas', [
+            'caja_id' => $cajaBase->id,
+            'tipo' => 'CIERRE',
+            'monto' => 1646.25,
+        ]);
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $cajaSiguiente->id,
+            'monto_apertura' => 1646.25,
+            'total_sistema' => 1646.25,
+            'diferencia' => 0,
+        ]);
+
+        $this->assertDatabaseHas('movimiento_cajas', [
+            'caja_id' => $cajaSiguiente->id,
+            'tipo' => 'APERTURA',
+            'monto' => 1646.25,
+        ]);
+    }
+
     private function giveSalesPermission(User $user): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
