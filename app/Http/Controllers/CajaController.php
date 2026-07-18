@@ -26,9 +26,11 @@ class CajaController extends Controller
 
         $cajas->getCollection()->each(function (Caja $caja) {
             $resumen = $this->resumenCaja($caja);
+            $totalSistema = (float) $resumen['disponible'];
+            $diferencia = $this->diferenciaCaja($caja, $totalSistema);
 
-            $caja->setAttribute('total_sistema_mostrado', $resumen['disponible']);
-            $caja->setAttribute('diferencia_mostrada', $caja->estado === 'CERRADA' ? (float) $caja->diferencia : 0);
+            $caja->setAttribute('total_sistema_mostrado', $totalSistema);
+            $caja->setAttribute('diferencia_mostrada', $diferencia);
         });
 
         $cajaAbiertaActual = null;
@@ -414,9 +416,7 @@ class CajaController extends Controller
         $egresos = $resumen['egresos'];
         $transferencias = $resumen['transferencias'];
         $totalSistema = $resumen['disponible'];
-        $diferencia = $caja->estado === 'CERRADA'
-            ? (float) $caja->diferencia
-            : 0;
+        $diferencia = $this->diferenciaCaja($caja, $totalSistema);
 
         return view('cajas.show', compact(
             'caja',
@@ -506,6 +506,15 @@ class CajaController extends Controller
             'salidas' => $salidas,
             'disponible' => $apertura + $ventas - $salidas,
         ];
+    }
+
+    private function diferenciaCaja(Caja $caja, float $totalSistema): float
+    {
+        if ($caja->estado !== 'CERRADA' || $caja->monto_cierre === null) {
+            return 0;
+        }
+
+        return (float) $caja->monto_cierre - $totalSistema;
     }
 
     private function ultimaCajaCerrada(int $sucursalId): ?Caja
