@@ -64,7 +64,7 @@
 
             @can('caja.ver_cierres')
                 <div class="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div class="bg-white shadow rounded p-4">
+                    <div class="bg-white shadow rounded p-4 lg:min-h-0">
                         <div class="text-sm text-gray-500">Transferencias del mes</div>
                         <div class="text-2xl font-bold text-emerald-700">
                             Q {{ number_format($totalTransferenciasMes, 2) }}
@@ -72,28 +72,33 @@
                     </div>
 
                     <div class="lg:col-span-2 bg-white shadow rounded p-4">
-                        <h3 class="font-bold text-gray-800 mb-3">Historial reciente de transferencias</h3>
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <h3 class="font-bold text-gray-800">Historial reciente de transferencias</h3>
+                            <span class="text-xs text-gray-500">
+                                {{ $transferencias->count() }} registros
+                            </span>
+                        </div>
 
-                        <div class="overflow-x-auto">
-                            <table class="w-full border text-sm">
+                        <div class="max-h-72 overflow-auto border border-gray-200 rounded">
+                            <table class="w-full min-w-[760px] text-sm">
                                 <thead>
                                     <tr class="bg-gray-100">
-                                        <th class="p-2 border text-left">Sucursal</th>
-                                        <th class="p-2 border text-left">Referencia</th>
-                                        <th class="p-2 border text-right">Monto</th>
-                                        <th class="p-2 border text-left">Usuario</th>
-                                        <th class="p-2 border text-left">Fecha</th>
+                                        <th class="sticky top-0 z-10 bg-gray-100 p-2 border-b border-r text-left">Sucursal</th>
+                                        <th class="sticky top-0 z-10 bg-gray-100 p-2 border-b border-r text-left">Referencia</th>
+                                        <th class="sticky top-0 z-10 bg-gray-100 p-2 border-b border-r text-right">Monto</th>
+                                        <th class="sticky top-0 z-10 bg-gray-100 p-2 border-b border-r text-left">Usuario</th>
+                                        <th class="sticky top-0 z-10 bg-gray-100 p-2 border-b text-left">Fecha</th>
                                     </tr>
                                 </thead>
 
                                 <tbody>
                                     @forelse($transferencias as $transferencia)
                                         <tr>
-                                            <td class="p-2 border">{{ $transferencia->caja->sucursal->nombre ?? '-' }}</td>
-                                            <td class="p-2 border">{{ $transferencia->referencia ?? '-' }}</td>
-                                            <td class="p-2 border text-right">Q {{ number_format($transferencia->monto, 2) }}</td>
-                                            <td class="p-2 border">{{ $transferencia->usuario->name ?? '-' }}</td>
-                                            <td class="p-2 border">
+                                            <td class="p-2 border-b border-r">{{ $transferencia->caja->sucursal->nombre ?? '-' }}</td>
+                                            <td class="p-2 border-b border-r">{{ $transferencia->referencia ?? '-' }}</td>
+                                            <td class="p-2 border-b border-r text-right whitespace-nowrap">Q {{ number_format($transferencia->monto, 2) }}</td>
+                                            <td class="p-2 border-b border-r">{{ $transferencia->usuario->name ?? '-' }}</td>
+                                            <td class="p-2 border-b whitespace-nowrap">
                                                 {{ ($transferencia->fecha_movimiento ?? $transferencia->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
                                             </td>
                                         </tr>
