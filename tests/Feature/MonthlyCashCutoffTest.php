@@ -122,6 +122,117 @@ class MonthlyCashCutoffTest extends TestCase
             ->assertOk();
     }
 
+    public function test_corte_mensual_no_permite_transferir_mas_del_disponible(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 8, 1, 9, 0, 0, config('app.timezone')));
+
+        [$user] = $this->createSucursalUserWithPermissions();
+        $caja = $this->createOpenCashWithJulySale($user, 1000, 500);
+
+        $this
+            ->actingAs($user)
+            ->from(route('cajas.corte-mensual'))
+            ->post(route('cajas.corte-mensual.store'), [
+                'periodo_year' => 2026,
+                'periodo_month' => 7,
+                'monto_transferido' => 1500.01,
+                'referencia' => 'BOLETA-EXCESO',
+            ])
+            ->assertRedirect(route('cajas.corte-mensual'))
+            ->assertSessionHasErrors('monto_transferido');
+
+        $this->assertDatabaseMissing('corte_mensual_cajas', [
+            'sucursal_id' => $user->sucursal_id,
+            'periodo_year' => 2026,
+            'periodo_month' => 7,
+        ]);
+
+        $this->assertDatabaseMissing('movimiento_cajas', [
+            'caja_id' => $caja->id,
+            'tipo' => 'TRANSFERENCIA_JEFE',
+            'referencia' => 'BOLETA-EXCESO',
+        ]);
+    }
+
+    public function test_corte_parcial_venta_posterior_cierre_y_nueva_apertura_cuadran(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 8, 1, 9, 0, 0, config('app.timezone')));
+
+        [$user] = $this->createSucursalUserWithPermissions();
+        $caja = $this->createOpenCashWithJulySale($user, 1000, 500);
+
+        $this
+            ->actingAs($user)
+            ->post(route('cajas.corte-mensual.store'), [
+                'periodo_year' => 2026,
+                'periodo_month' => 7,
+                'monto_transferido' => 1200,
+                'referencia' => 'BOLETA-PARCIAL',
+            ])
+            ->assertRedirect(route('cajas.index'));
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 500,
+            'fecha_movimiento' => now(),
+            'referencia' => 'VENTA-POST-CORTE',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post(route('cajas.cierre.store', $caja), [
+                'monto_cierre' => 800,
+                'observacion' => 'Cierre posterior al corte mensual',
+            ])
+            ->assertRedirect(route('cajas.index'));
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $caja->id,
+            'estado' => 'CERRADA',
+            'monto_cierre' => 800,
+            'total_sistema' => 800,
+            'diferencia' => 0,
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post(route('cajas.apertura.store'), [
+                'monto_apertura' => 0,
+            ])
+            ->assertRedirect(route('cajas.index'));
+
+        $this->assertDatabaseHas('cajas', [
+            'sucursal_id' => $user->sucursal_id,
+            'estado' => 'ABIERTA',
+            'monto_apertura' => 800,
+        ]);
+    }
+
+    public function test_no_registra_corte_fuera_de_periodo_pendiente_o_disponible(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 8, 15, 9, 0, 0, config('app.timezone')));
+
+        [$user] = $this->createSucursalUserWithPermissions();
+
+        $this
+            ->actingAs($user)
+            ->get(route('cajas.corte-mensual'))
+            ->assertRedirect(route('cajas.index'));
+
+        $this
+            ->actingAs($user)
+            ->post(route('cajas.corte-mensual.store'), [
+                'periodo_year' => 2026,
+                'periodo_month' => 8,
+                'monto_transferido' => 0,
+            ])
+            ->assertRedirect(route('cajas.index'));
+
+        $this->assertSame(0, CorteMensualCaja::count());
+    }
+
     private function createSucursalUserWithPermissions(): array
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -147,5 +258,40 @@ class MonthlyCashCutoffTest extends TestCase
         }
 
         return [$user, $sucursal];
+    }
+
+    private function createOpenCashWithJulySale(User $user, float $apertura, float $venta): Caja
+    {
+        Venta::create([
+            'sucursal_id' => $user->sucursal_id,
+            'user_id' => $user->id,
+            'numero_factura' => 'FAC-JULIO-' . uniqid(),
+            'subtotal' => $venta,
+            'descuento' => 0,
+            'total' => $venta,
+            'estado' => 'FINALIZADA',
+        ])->forceFill([
+            'created_at' => Carbon::create(2026, 7, 31, 12, 0, 0, config('app.timezone')),
+            'updated_at' => Carbon::create(2026, 7, 31, 12, 0, 0, config('app.timezone')),
+        ])->save();
+
+        $caja = Caja::create([
+            'sucursal_id' => $user->sucursal_id,
+            'user_id' => $user->id,
+            'monto_apertura' => $apertura,
+            'fecha_apertura' => Carbon::create(2026, 7, 31, 8, 0, 0, config('app.timezone')),
+            'estado' => 'ABIERTA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => $venta,
+            'fecha_movimiento' => Carbon::create(2026, 7, 31, 12, 0, 0, config('app.timezone')),
+            'referencia' => 'FAC-JULIO-CAJA',
+        ]);
+
+        return $caja;
     }
 }

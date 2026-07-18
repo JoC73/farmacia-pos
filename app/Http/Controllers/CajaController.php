@@ -419,13 +419,13 @@ class CajaController extends Controller
 
         $service = app(MonthlyCashCutoffService::class);
         $periodo = $service->pendingForSucursal($sucursalId)
-            ?? $service->warningForSucursal($sucursalId)
-            ?? [
-                'year' => (int) now()->year,
-                'month' => (int) now()->month,
-                'label' => now()->locale('es')->translatedFormat('F Y'),
-                'bloqueante' => false,
-            ];
+            ?? $service->warningForSucursal($sucursalId);
+
+        if (! $periodo) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('success', 'No hay corte mensual pendiente para esta sucursal.');
+        }
 
         $caja = Caja::with(['usuario', 'sucursal'])
             ->where('sucursal_id', $sucursalId)
@@ -466,6 +466,18 @@ class CajaController extends Controller
         ]);
 
         $service = app(MonthlyCashCutoffService::class);
+        $periodo = $service->pendingForSucursal($sucursalId)
+            ?? $service->warningForSucursal($sucursalId);
+
+        if (
+            ! $periodo
+            || (int) $data['periodo_year'] !== (int) $periodo['year']
+            || (int) $data['periodo_month'] !== (int) $periodo['month']
+        ) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('error', 'No hay un corte mensual pendiente para el periodo solicitado.');
+        }
 
         if ($service->cutoffExists($sucursalId, (int) $data['periodo_year'], (int) $data['periodo_month'])) {
             return redirect()
@@ -484,7 +496,25 @@ class CajaController extends Controller
                 ->with('error', 'Debes tener caja abierta para registrar el corte mensual.');
         }
 
-        DB::transaction(function () use ($service, $caja, $user, $sucursalId, $data) {
+        DB::transaction(function () use ($service, $user, $sucursalId, $data) {
+            if ($service->cutoffExists($sucursalId, (int) $data['periodo_year'], (int) $data['periodo_month'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'periodo_month' => 'Este corte mensual ya fue registrado anteriormente.',
+                ]);
+            }
+
+            $caja = Caja::where('sucursal_id', $sucursalId)
+                ->where('estado', 'ABIERTA')
+                ->lockForUpdate()
+                ->latest()
+                ->first();
+
+            if (! $caja) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'caja' => 'Debes tener caja abierta para registrar el corte mensual.',
+                ]);
+            }
+
             $resumen = $service->resumenCaja($caja);
             $montoTransferido = round((float) $data['monto_transferido'], 2);
             $disponible = round((float) $resumen['disponible_antes'], 2);
@@ -503,7 +533,7 @@ class CajaController extends Controller
                     'monto' => $montoTransferido,
                     'fecha_movimiento' => now(),
                     'referencia' => $data['referencia'] ?? 'CORTE-MENSUAL-' . $data['periodo_year'] . '-' . str_pad((string) $data['periodo_month'], 2, '0', STR_PAD_LEFT),
-                    'descripcion' => $data['observacion'] ?: 'Corte mensual de caja',
+                    'descripcion' => ($data['observacion'] ?? null) ?: 'Corte mensual de caja',
                 ]);
             }
 
