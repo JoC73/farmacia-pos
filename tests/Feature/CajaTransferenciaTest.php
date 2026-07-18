@@ -388,6 +388,104 @@ class CajaTransferenciaTest extends TestCase
             ->assertDontSee('Q -455.00');
     }
 
+    public function test_migracion_concilia_cadena_de_caja_farmavida(): void
+    {
+        $sucursal = Sucursal::create([
+            'nombre' => 'FarmaVida Mazate',
+            'estado' => true,
+        ]);
+
+        $user = User::factory()->create()->forceFill([
+            'sucursal_id' => $sucursal->id,
+            'estado' => true,
+        ]);
+        $user->save();
+
+        $cajaBase = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => 3406,
+            'monto_cierre' => 6792.50,
+            'total_sistema' => 3536.50,
+            'diferencia' => 3256,
+            'fecha_apertura' => now()->subDays(2),
+            'fecha_cierre' => now()->subDay(),
+            'estado' => 'CERRADA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaBase->id,
+            'user_id' => $user->id,
+            'tipo' => 'CIERRE',
+            'monto' => 6792.50,
+            'fecha_movimiento' => now()->subDay(),
+            'referencia' => 'CIERRE-DUPLICADO',
+        ]);
+
+        $cajaSiguiente = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => 6792.50,
+            'monto_cierre' => 10302.50,
+            'total_sistema' => 6916,
+            'diferencia' => 3386.50,
+            'fecha_apertura' => now()->subDay(),
+            'fecha_cierre' => now(),
+            'estado' => 'CERRADA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaSiguiente->id,
+            'user_id' => $user->id,
+            'tipo' => 'APERTURA',
+            'monto' => 6792.50,
+            'fecha_movimiento' => now()->subDay(),
+            'referencia' => 'APERTURA-DUPLICADA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaSiguiente->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 123.50,
+            'fecha_movimiento' => now(),
+            'referencia' => 'VENTAS-FARMAVIDA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaSiguiente->id,
+            'user_id' => $user->id,
+            'tipo' => 'CIERRE',
+            'monto' => 10302.50,
+            'fecha_movimiento' => now(),
+            'referencia' => 'CIERRE-DUPLICADO-SIGUIENTE',
+        ]);
+
+        $migration = require database_path('migrations/2026_07_17_000004_conciliate_farmavida_cash_chain.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $cajaBase->id,
+            'monto_cierre' => 3536.50,
+            'total_sistema' => 3536.50,
+            'diferencia' => 0,
+        ]);
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $cajaSiguiente->id,
+            'monto_apertura' => 3536.50,
+            'monto_cierre' => 3660,
+            'total_sistema' => 3660,
+            'diferencia' => 0,
+        ]);
+
+        $this->assertDatabaseHas('movimiento_cajas', [
+            'caja_id' => $cajaSiguiente->id,
+            'tipo' => 'APERTURA',
+            'monto' => 3536.50,
+        ]);
+    }
+
     private function giveSalesPermission(User $user): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
