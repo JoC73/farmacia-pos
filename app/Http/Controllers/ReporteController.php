@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Caja;
 use App\Models\Compra;
+use App\Models\CorteMensualCaja;
 use App\Models\MovimientoCaja;
 use App\Models\Venta;
 use App\Models\Sucursal;
@@ -29,6 +30,14 @@ class ReporteController extends Controller
         ])
             ->where('estado', 'FINALIZADA')
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId));
+
+        if ($request->filled('month')) {
+            $query->whereMonth('created_at', (int) $request->month);
+        }
+
+        if ($request->filled('year')) {
+            $query->whereYear('created_at', (int) $request->year);
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -116,12 +125,65 @@ class ReporteController extends Controller
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->get();
 
+        $years = $this->availableYears();
+        $months = $this->months();
+
         return view('reportes.ventas', compact(
             'ventas',
             'totalVentas',
             'sucursales',
-            'usuarios'
+            'usuarios',
+            'years',
+            'months'
         ));
+    }
+
+    public function cortesMensuales(Request $request)
+    {
+        $sucursalId = auth()->user()->visibleSucursalId();
+
+        $query = CorteMensualCaja::with(['sucursal', 'caja', 'usuario'])
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId));
+
+        if ($request->filled('month')) {
+            $query->where('periodo_month', (int) $request->month);
+        }
+
+        if ($request->filled('year')) {
+            $query->where('periodo_year', (int) $request->year);
+        }
+
+        if (! $sucursalId && $request->filled('sucursal_id')) {
+            $query->where('sucursal_id', (int) $request->sucursal_id);
+        }
+
+        $totalsQuery = clone $query;
+
+        $cortes = $query
+            ->orderByDesc('periodo_year')
+            ->orderByDesc('periodo_month')
+            ->latest('fecha_corte')
+            ->paginate(30)
+            ->withQueryString();
+
+        $totales = [
+            'disponible_antes' => (float) (clone $totalsQuery)->sum('disponible_antes'),
+            'monto_transferido' => (float) (clone $totalsQuery)->sum('monto_transferido'),
+            'saldo_restante' => (float) (clone $totalsQuery)->sum('saldo_restante'),
+        ];
+
+        $sucursales = Sucursal::where('estado', true)
+            ->when($sucursalId, fn ($query) => $query->whereKey($sucursalId))
+            ->orderBy('nombre')
+            ->get();
+
+        return view('reportes.cortes-mensuales', [
+            'cortes' => $cortes,
+            'totales' => $totales,
+            'sucursales' => $sucursales,
+            'years' => $this->availableYears(),
+            'months' => $this->months(),
+        ]);
     }
 
     public function movimientosSucursal()
@@ -216,5 +278,31 @@ class ReporteController extends Controller
                 ? (auth()->user()->sucursal?->nombre ?? 'Sucursal asignada')
                 : 'Todas las sucursales',
         ]);
+    }
+
+    private function availableYears(): array
+    {
+        $currentYear = (int) now()->year;
+        $startYear = 2026;
+
+        return range($currentYear, $startYear);
+    }
+
+    private function months(): array
+    {
+        return [
+            1 => 'Enero',
+            2 => 'Febrero',
+            3 => 'Marzo',
+            4 => 'Abril',
+            5 => 'Mayo',
+            6 => 'Junio',
+            7 => 'Julio',
+            8 => 'Agosto',
+            9 => 'Septiembre',
+            10 => 'Octubre',
+            11 => 'Noviembre',
+            12 => 'Diciembre',
+        ];
     }
 }

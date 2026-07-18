@@ -349,6 +349,10 @@ Route::get('/reportes/ventas', [ReporteController::class, 'ventas'])
     ->name('reportes.ventas')
     ->middleware('permission:reportes.ventas');
 
+Route::get('/reportes/cortes-mensuales', [ReporteController::class, 'cortesMensuales'])
+    ->name('reportes.cortes-mensuales')
+    ->middleware('permission:reportes.caja');
+
 Route::get('/reportes/movimientos-sucursal', [ReporteController::class, 'movimientosSucursal'])
     ->name('reportes.movimientos-sucursal')
     ->middleware('permission:reportes.caja');

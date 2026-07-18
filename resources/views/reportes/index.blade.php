@@ -30,6 +30,23 @@
                 </a>
 
                 @can('reportes.caja')
+                    <a href="{{ route('reportes.cortes-mensuales') }}"
+                       class="bg-white shadow rounded p-6 hover:bg-gray-50 transition">
+
+                        <h3 class="text-lg font-bold mb-2">
+
+                            Cortes Mensuales
+
+                        </h3>
+
+                        <p class="text-gray-600 text-sm">
+
+                            Historial mensual de efectivo transferido y saldo restante.
+
+                        </p>
+
+                    </a>
+
                     <a href="{{ route('reportes.movimientos-sucursal') }}"
                        class="bg-white shadow rounded p-6 hover:bg-gray-50 transition">
 

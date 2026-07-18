@@ -9,7 +9,31 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             <form method="GET" action="{{ route('reportes.ventas') }}"
-                  class="bg-white shadow rounded p-4 mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
+                  class="bg-white shadow rounded p-4 mb-6 grid grid-cols-1 md:grid-cols-6 gap-4">
+
+                <div>
+                    <label class="block text-sm font-medium">Mes</label>
+                    <select name="month" class="w-full border-gray-300 rounded">
+                        <option value="">Todos</option>
+                        @foreach($months as $value => $label)
+                            <option value="{{ $value }}" @selected((string) request('month') === (string) $value)>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium">Año</label>
+                    <select name="year" class="w-full border-gray-300 rounded">
+                        <option value="">Todos</option>
+                        @foreach($years as $year)
+                            <option value="{{ $year }}" @selected((string) request('year') === (string) $year)>
+                                {{ $year }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
 
                 <div>
                     <label class="block text-sm font-medium">Fecha inicio</label>
