@@ -6,7 +6,6 @@ use App\Models\Caja;
 use App\Models\Compra;
 use App\Models\DetalleVenta;
 use App\Models\Inventario;
-use App\Models\MovimientoCaja;
 use App\Models\Venta;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -26,31 +25,11 @@ class DashboardController extends Controller
             ->whereDate('created_at', today())
             ->sum('total');
 
-        $ventasMesBrutas = Venta::where('estado', 'FINALIZADA')
+        $ventasMes = Venta::where('estado', 'FINALIZADA')
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->sum('total');
-
-        $transferenciasMes = MovimientoCaja::where('tipo', 'TRANSFERENCIA_JEFE')
-            ->when($sucursalId, fn ($query) => $query->whereHas('caja', fn ($caja) => $caja->where('sucursal_id', $sucursalId)))
-            ->where(function ($query) {
-                $query
-                    ->where(function ($fechaMovimiento) {
-                        $fechaMovimiento
-                            ->whereMonth('fecha_movimiento', now()->month)
-                            ->whereYear('fecha_movimiento', now()->year);
-                    })
-                    ->orWhere(function ($fallback) {
-                        $fallback
-                            ->whereNull('fecha_movimiento')
-                            ->whereMonth('created_at', now()->month)
-                            ->whereYear('created_at', now()->year);
-                    });
-            })
-            ->sum('monto');
-
-        $ventasMes = max(0, (float) $ventasMesBrutas - (float) $transferenciasMes);
 
         $comprasMes = Compra::whereMonth('created_at', now()->month)
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
@@ -105,7 +84,6 @@ class DashboardController extends Controller
         return view('dashboard', compact(
             'ventasHoy',
             'ventasMes',
-            'transferenciasMes',
             'comprasMes',
             'cajasAbiertas',
             'productosPorVencer',

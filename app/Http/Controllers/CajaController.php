@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Caja;
 use App\Models\MovimientoCaja;
 use App\Models\Sucursal;
-use App\Models\Venta;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +25,7 @@ class CajaController extends Controller
         ->paginate(20);
 
         $cajas->getCollection()->each(function (Caja $caja) {
-            $resumen = $this->resumenOperativoCaja($caja);
+            $resumen = $this->resumenCaja($caja);
 
             $caja->setAttribute('total_sistema_mostrado', $resumen['disponible']);
             $caja->setAttribute('diferencia_mostrada', $caja->estado === 'CERRADA' ? (float) $caja->diferencia : 0);
@@ -240,7 +239,7 @@ class CajaController extends Controller
                 ->with('error', 'La caja ya está cerrada.');
         }
 
-        $resumen = $this->resumenOperativoCaja($caja);
+        $resumen = $this->resumenCaja($caja);
         $ventas = $resumen['ventas'];
         $egresos = $resumen['egresos'];
         $transferencias = $resumen['transferencias'];
@@ -278,7 +277,7 @@ class CajaController extends Controller
 
     DB::transaction(function () use ($request, $caja) {
 
-        $resumen = $this->resumenOperativoCaja($caja);
+        $resumen = $this->resumenCaja($caja);
         $totalSistema = $resumen['disponible'];
 
         $diferencia =
@@ -357,7 +356,7 @@ class CajaController extends Controller
     {
         $this->validarCajaParaTransferencia($caja);
 
-        $resumen = $this->resumenTransferenciaJefe($caja);
+        $resumen = $this->resumenCaja($caja);
         $disponible = $resumen['disponible'];
 
         return view('cajas.transferencia', compact('caja', 'disponible', 'resumen'));
@@ -410,7 +409,7 @@ class CajaController extends Controller
             'movimientos.usuario',
         ]);
 
-        $resumen = $this->resumenOperativoCaja($caja);
+        $resumen = $this->resumenCaja($caja);
         $ventas = $resumen['ventas'];
         $egresos = $resumen['egresos'];
         $transferencias = $resumen['transferencias'];
@@ -457,44 +456,6 @@ class CajaController extends Controller
             ->sum('monto');
     }
 
-    private function ventasMensualesSucursal(int $sucursalId): float
-    {
-        return (float) Venta::where('estado', 'FINALIZADA')
-            ->where('sucursal_id', $sucursalId)
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->sum('total');
-    }
-
-    private function egresosMensualesSucursal(int $sucursalId): float
-    {
-        return $this->movimientosMensualesSucursal($sucursalId, 'EGRESO');
-    }
-
-    private function transferenciasMensualesSucursal(int $sucursalId): float
-    {
-        return $this->movimientosMensualesSucursal($sucursalId, 'TRANSFERENCIA_JEFE');
-    }
-
-    private function movimientosMensualesSucursal(int $sucursalId, string $tipo): float
-    {
-        $inicioMes = now()->startOfMonth();
-        $finMes = now()->endOfMonth();
-
-        return (float) MovimientoCaja::where('tipo', $tipo)
-            ->whereHas('caja', fn ($query) => $query->where('sucursal_id', $sucursalId))
-            ->where(function ($query) use ($inicioMes, $finMes) {
-                $query
-                    ->whereBetween('fecha_movimiento', [$inicioMes, $finMes])
-                    ->orWhere(function ($fallback) use ($inicioMes, $finMes) {
-                        $fallback
-                            ->whereNull('fecha_movimiento')
-                            ->whereBetween('created_at', [$inicioMes, $finMes]);
-                    });
-            })
-            ->sum('monto');
-    }
-
     private function validarCajaParaEgreso(Caja $caja): void
     {
         $this->authorizeCajaOperation($caja);
@@ -526,7 +487,7 @@ class CajaController extends Controller
 
     private function efectivoDisponibleParaTransferencia(Caja $caja): float
     {
-        return $this->resumenTransferenciaJefe($caja)['disponible'];
+        return $this->resumenCaja($caja)['disponible'];
     }
 
     private function resumenCaja(Caja $caja): array
@@ -545,32 +506,6 @@ class CajaController extends Controller
             'salidas' => $salidas,
             'disponible' => $apertura + $ventas - $salidas,
         ];
-    }
-
-    private function resumenTransferenciaJefe(Caja $caja): array
-    {
-        $apertura = (float) $caja->monto_apertura;
-        $ventasMes = $this->ventasMensualesSucursal((int) $caja->sucursal_id);
-        $egresosMes = $this->egresosMensualesSucursal((int) $caja->sucursal_id);
-        $transferenciasMes = $this->transferenciasMensualesSucursal((int) $caja->sucursal_id);
-        $salidasMes = $egresosMes + $transferenciasMes;
-
-        return [
-            'apertura' => $apertura,
-            'ventas' => $ventasMes,
-            'egresos' => $egresosMes,
-            'transferencias' => $transferenciasMes,
-            'salidas' => $salidasMes,
-            'disponible' => max(0, $apertura + $ventasMes - $salidasMes),
-            'periodo' => now()->format('m/Y'),
-        ];
-    }
-
-    private function resumenOperativoCaja(Caja $caja): array
-    {
-        return $caja->estado === 'ABIERTA'
-            ? $this->resumenTransferenciaJefe($caja)
-            : $this->resumenCaja($caja);
     }
 
     private function ultimaCajaCerrada(int $sucursalId): ?Caja

@@ -16,7 +16,7 @@ class CajaTransferenciaTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_transferencia_usa_ventas_del_mes_mas_apertura(): void
+    public function test_transferencia_usa_ventas_de_la_caja_mas_apertura(): void
     {
         $sucursal = Sucursal::create([
             'nombre' => 'FarmaVida Mazate',
@@ -48,6 +48,15 @@ class CajaTransferenciaTest extends TestCase
             'estado' => 'FINALIZADA',
         ]);
 
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 3627.25,
+            'fecha_movimiento' => now(),
+            'referencia' => 'FAC-TEST-1',
+        ]);
+
         $this->assertTrue($user->fresh()->canAccessSucursal($caja->sucursal_id));
         $this->assertTrue($user->fresh()->can('ventas.crear'));
         $this->assertSame('ABIERTA', $caja->fresh()->estado);
@@ -70,7 +79,7 @@ class CajaTransferenciaTest extends TestCase
         ]);
     }
 
-    public function test_transferencia_no_supera_disponible_mensual(): void
+    public function test_transferencia_no_supera_disponible_de_la_caja(): void
     {
         $sucursal = Sucursal::create([
             'nombre' => 'FarmaVida Mazate',
@@ -100,6 +109,15 @@ class CajaTransferenciaTest extends TestCase
             'descuento' => 0,
             'total' => 100,
             'estado' => 'FINALIZADA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 100,
+            'fecha_movimiento' => now(),
+            'referencia' => 'FAC-TEST-2',
         ]);
 
         MovimientoCaja::create([
@@ -177,6 +195,15 @@ class CajaTransferenciaTest extends TestCase
             'estado' => 'FINALIZADA',
         ]);
 
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 3627.25,
+            'fecha_movimiento' => now(),
+            'referencia' => 'FAC-SUCURSAL-1',
+        ]);
+
         Venta::create([
             'sucursal_id' => $otraSucursal->id,
             'user_id' => $otroUser->id,
@@ -185,6 +212,15 @@ class CajaTransferenciaTest extends TestCase
             'descuento' => 0,
             'total' => 9999.99,
             'estado' => 'FINALIZADA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $otraCaja->id,
+            'user_id' => $otroUser->id,
+            'tipo' => 'VENTA',
+            'monto' => 9999.99,
+            'fecha_movimiento' => now(),
+            'referencia' => 'FAC-OTRA-1',
         ]);
 
         MovimientoCaja::create([
@@ -214,7 +250,7 @@ class CajaTransferenciaTest extends TestCase
         ]);
     }
 
-    public function test_cierre_usa_disponible_despues_de_transferencia_mensual(): void
+    public function test_cierre_usa_disponible_despues_de_transferencia_de_caja(): void
     {
         $sucursal = Sucursal::create([
             'nombre' => 'FarmaVida Mazate',
@@ -249,6 +285,15 @@ class CajaTransferenciaTest extends TestCase
         MovimientoCaja::create([
             'caja_id' => $caja->id,
             'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 3627.25,
+            'fecha_movimiento' => now(),
+            'referencia' => 'FAC-CIERRE-1',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
             'tipo' => 'TRANSFERENCIA_JEFE',
             'monto' => 1100,
             'fecha_movimiento' => now(),
@@ -273,6 +318,31 @@ class CajaTransferenciaTest extends TestCase
         ]);
     }
 
+    public function test_tres_sucursales_calculan_su_caja_de_forma_independiente(): void
+    {
+        $farmavida = $this->createBranchCashScenario('FarmaVida', 100, 123.50, 20);
+        $tinajon = $this->createBranchCashScenario('El Tinajon', 829.50, 919.50, 100);
+        $garibaldi = $this->createBranchCashScenario('Garibaldi', 0, 0, 0);
+
+        $this
+            ->actingAs($farmavida['user'])
+            ->get(route('cajas.show', $farmavida['caja']))
+            ->assertOk()
+            ->assertSee('Q 203.50');
+
+        $this
+            ->actingAs($tinajon['user'])
+            ->get(route('cajas.show', $tinajon['caja']))
+            ->assertOk()
+            ->assertSee('Q 1,649.00');
+
+        $this
+            ->actingAs($garibaldi['user'])
+            ->get(route('cajas.show', $garibaldi['caja']))
+            ->assertOk()
+            ->assertSee('Q 0.00');
+    }
+
     private function giveSalesPermission(User $user): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -285,5 +355,52 @@ class CajaTransferenciaTest extends TestCase
 
             $user->givePermissionTo($permission);
         }
+    }
+
+    private function createBranchCashScenario(string $name, float $apertura, float $ventas, float $transferencias): array
+    {
+        $sucursal = Sucursal::create([
+            'nombre' => $name,
+            'estado' => true,
+        ]);
+
+        $user = User::factory()->create()->forceFill([
+            'sucursal_id' => $sucursal->id,
+            'estado' => true,
+        ]);
+        $user->save();
+        $this->giveSalesPermission($user);
+
+        $caja = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => $apertura,
+            'fecha_apertura' => now(),
+            'estado' => 'ABIERTA',
+        ]);
+
+        if ($ventas > 0) {
+            MovimientoCaja::create([
+                'caja_id' => $caja->id,
+                'user_id' => $user->id,
+                'tipo' => 'VENTA',
+                'monto' => $ventas,
+                'fecha_movimiento' => now(),
+                'referencia' => 'VENTA-' . $name,
+            ]);
+        }
+
+        if ($transferencias > 0) {
+            MovimientoCaja::create([
+                'caja_id' => $caja->id,
+                'user_id' => $user->id,
+                'tipo' => 'TRANSFERENCIA_JEFE',
+                'monto' => $transferencias,
+                'fecha_movimiento' => now(),
+                'referencia' => 'TRANSFERENCIA-' . $name,
+            ]);
+        }
+
+        return compact('sucursal', 'user', 'caja');
     }
 }
