@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Models\Caja;
 use App\Models\MovimientoCaja;
+use App\Services\MonthlyCashCutoffService;
 use Illuminate\Support\Str;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
@@ -147,6 +148,13 @@ class VentaController extends Controller
     {
         $user = auth()->user();
         $cajaAbierta = null;
+        $corteMensualPendiente = app(MonthlyCashCutoffService::class)->pendingForSucursal($user->sucursal_id);
+
+        if ($corteMensualPendiente) {
+            return redirect()
+                ->route('cajas.corte-mensual')
+                ->with('error', 'Debes registrar el corte mensual de ' . $corteMensualPendiente['label'] . ' antes de vender.');
+        }
 
         if ($user->sucursal_id) {
             $cajaAbierta = Caja::with(['usuario', 'sucursal'])
@@ -197,6 +205,15 @@ class VentaController extends Controller
             'productos.*.cantidad' => 'required|integer|min:1',
         ]);
 
+        $user = auth()->user();
+        $corteMensualPendiente = app(MonthlyCashCutoffService::class)->pendingForSucursal($user->sucursal_id);
+
+        if ($corteMensualPendiente) {
+            return redirect()
+                ->route('cajas.corte-mensual')
+                ->with('error', 'Debes registrar el corte mensual de ' . $corteMensualPendiente['label'] . ' antes de vender.');
+        }
+
         /*
 |--------------------------------------------------------------------------
 | VALIDAR CAJA ABIERTA
@@ -215,8 +232,6 @@ if (!$caja) {
         ->withInput()
         ->with('error', 'Debe existir una caja abierta para tu sucursal antes de vender.');
 }
-
-$user = auth()->user();
 
 if (!$user->sucursal_id) {
 

@@ -20,6 +20,38 @@
                 </div>
             @endif
 
+            @if($corteMensualPendiente)
+                <div class="mb-4 rounded border border-red-300 bg-red-50 p-4 text-red-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                    <div>
+                        <div class="font-bold">Corte mensual pendiente</div>
+                        <div class="text-sm">
+                            Debes registrar el corte de {{ $corteMensualPendiente['label'] }} antes de continuar vendiendo.
+                        </div>
+                    </div>
+
+                    <a href="{{ route('cajas.corte-mensual') }}"
+                       class="px-4 py-2 rounded text-center font-bold text-white"
+                       style="background-color: #dc2626;">
+                        Hacer Corte
+                    </a>
+                </div>
+            @elseif($corteMensualAviso)
+                <div class="mb-4 rounded border border-amber-300 bg-amber-50 p-4 text-amber-900 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                    <div>
+                        <div class="font-bold">Corte mensual disponible</div>
+                        <div class="text-sm">
+                            Ya puedes registrar el corte de {{ $corteMensualAviso['label'] }} y decidir cuanto efectivo dejar en caja.
+                        </div>
+                    </div>
+
+                    <a href="{{ route('cajas.corte-mensual') }}"
+                       class="px-4 py-2 rounded text-center font-bold text-white"
+                       style="background-color: #d97706;">
+                        Registrar Corte
+                    </a>
+                </div>
+            @endif
+
             <div class="mb-4">
                 @if($cajaAbiertaActual)
                     <div class="bg-emerald-50 border border-emerald-200 rounded p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">

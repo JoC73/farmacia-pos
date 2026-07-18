@@ -249,6 +249,14 @@ Route::post('/cajas/apertura', [CajaController::class, 'storeApertura'])
     ->name('cajas.apertura.store')
     ->middleware('permission:caja.abrir');
 
+Route::get('/cajas/corte-mensual', [CajaController::class, 'createCorteMensual'])
+    ->name('cajas.corte-mensual')
+    ->middleware('permission:caja.cerrar|caja.ver_cierres');
+
+Route::post('/cajas/corte-mensual', [CajaController::class, 'storeCorteMensual'])
+    ->name('cajas.corte-mensual.store')
+    ->middleware('permission:caja.cerrar|caja.ver_cierres');
+
 Route::get('/cajas/{caja}/cierre', [CajaController::class, 'createCierre'])
     ->name('cajas.cierre')
     ->middleware('permission:caja.cerrar');

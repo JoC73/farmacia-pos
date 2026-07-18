@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Caja;
+use App\Models\CorteMensualCaja;
 use App\Models\MovimientoCaja;
 use App\Models\Sucursal;
+use App\Services\MonthlyCashCutoffService;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +47,8 @@ class CajaController extends Controller
 
         $transferencias = collect();
         $totalTransferenciasMes = 0;
+        $corteMensualPendiente = app(MonthlyCashCutoffService::class)->pendingForSucursal($sucursalId);
+        $corteMensualAviso = app(MonthlyCashCutoffService::class)->warningForSucursal($sucursalId);
 
         if ($user->can('caja.ver_cierres')) {
             $transferenciasQuery = MovimientoCaja::with([
@@ -72,7 +76,9 @@ class CajaController extends Controller
             'cajas',
             'transferencias',
             'totalTransferenciasMes',
-            'cajaAbiertaActual'
+            'cajaAbiertaActual',
+            'corteMensualPendiente',
+            'corteMensualAviso'
         ));
     }
 
@@ -398,6 +404,131 @@ class CajaController extends Controller
         return redirect()
             ->route('cajas.index')
             ->with('success', 'Transferencia a jefe registrada correctamente. El disponible de la sucursal fue actualizado.');
+    }
+
+    public function createCorteMensual()
+    {
+        $user = auth()->user();
+        $sucursalId = $user->visibleSucursalId();
+
+        if (! $sucursalId) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('error', 'Selecciona una sucursal para registrar el corte mensual.');
+        }
+
+        $service = app(MonthlyCashCutoffService::class);
+        $periodo = $service->pendingForSucursal($sucursalId)
+            ?? $service->warningForSucursal($sucursalId)
+            ?? [
+                'year' => (int) now()->year,
+                'month' => (int) now()->month,
+                'label' => now()->locale('es')->translatedFormat('F Y'),
+                'bloqueante' => false,
+            ];
+
+        $caja = Caja::with(['usuario', 'sucursal'])
+            ->where('sucursal_id', $sucursalId)
+            ->where('estado', 'ABIERTA')
+            ->latest()
+            ->first();
+
+        if (! $caja) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('error', 'Debes abrir caja antes de registrar el corte mensual. La apertura tomara el saldo del ultimo cierre.');
+        }
+
+        if ($service->cutoffExists($sucursalId, $periodo['year'], $periodo['month'])) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('success', 'El corte mensual de ' . $periodo['label'] . ' ya fue registrado.');
+        }
+
+        $resumen = $service->resumenCaja($caja);
+
+        return view('cajas.corte-mensual', compact('caja', 'periodo', 'resumen'));
+    }
+
+    public function storeCorteMensual(Request $request)
+    {
+        $user = auth()->user();
+        $sucursalId = $user->visibleSucursalId();
+
+        abort_unless($sucursalId && $user->canAccessSucursal($sucursalId), 403);
+
+        $data = $request->validate([
+            'periodo_year' => 'required|integer|min:2026|max:2100',
+            'periodo_month' => 'required|integer|min:1|max:12',
+            'monto_transferido' => 'required|numeric|min:0',
+            'referencia' => 'nullable|string|max:120',
+            'observacion' => 'nullable|string|max:500',
+        ]);
+
+        $service = app(MonthlyCashCutoffService::class);
+
+        if ($service->cutoffExists($sucursalId, (int) $data['periodo_year'], (int) $data['periodo_month'])) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('success', 'Este corte mensual ya fue registrado anteriormente.');
+        }
+
+        $caja = Caja::where('sucursal_id', $sucursalId)
+            ->where('estado', 'ABIERTA')
+            ->latest()
+            ->first();
+
+        if (! $caja) {
+            return redirect()
+                ->route('cajas.index')
+                ->with('error', 'Debes tener caja abierta para registrar el corte mensual.');
+        }
+
+        DB::transaction(function () use ($service, $caja, $user, $sucursalId, $data) {
+            $resumen = $service->resumenCaja($caja);
+            $montoTransferido = round((float) $data['monto_transferido'], 2);
+            $disponible = round((float) $resumen['disponible_antes'], 2);
+
+            if ($montoTransferido > $disponible) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'monto_transferido' => 'El monto transferido no puede superar el disponible de caja.',
+                ]);
+            }
+
+            if ($montoTransferido > 0) {
+                MovimientoCaja::create([
+                    'caja_id' => $caja->id,
+                    'user_id' => $user->id,
+                    'tipo' => 'TRANSFERENCIA_JEFE',
+                    'monto' => $montoTransferido,
+                    'fecha_movimiento' => now(),
+                    'referencia' => $data['referencia'] ?? 'CORTE-MENSUAL-' . $data['periodo_year'] . '-' . str_pad((string) $data['periodo_month'], 2, '0', STR_PAD_LEFT),
+                    'descripcion' => $data['observacion'] ?: 'Corte mensual de caja',
+                ]);
+            }
+
+            CorteMensualCaja::create([
+                'sucursal_id' => $sucursalId,
+                'caja_id' => $caja->id,
+                'user_id' => $user->id,
+                'periodo_year' => (int) $data['periodo_year'],
+                'periodo_month' => (int) $data['periodo_month'],
+                'saldo_inicial' => $resumen['saldo_inicial'],
+                'ventas' => $resumen['ventas'],
+                'egresos' => $resumen['egresos'],
+                'transferencias_previas' => $resumen['transferencias_previas'],
+                'disponible_antes' => $disponible,
+                'monto_transferido' => $montoTransferido,
+                'saldo_restante' => round($disponible - $montoTransferido, 2),
+                'fecha_corte' => now(),
+                'referencia' => $data['referencia'] ?? null,
+                'observacion' => $data['observacion'] ?? null,
+            ]);
+        });
+
+        return redirect()
+            ->route('cajas.index')
+            ->with('success', 'Corte mensual registrado correctamente.');
     }
 
     public function show(Caja $caja)
