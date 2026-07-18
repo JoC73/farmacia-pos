@@ -343,7 +343,7 @@ class CajaTransferenciaTest extends TestCase
             ->assertSee('Q 0.00');
     }
 
-    public function test_cajas_cerradas_muestran_diferencia_recalculada_con_transferencias(): void
+    public function test_cajas_cerradas_muestran_total_y_diferencia_conciliados(): void
     {
         $sucursal = Sucursal::create([
             'nombre' => 'Farmacia Familiar M&C El Tinajon',
@@ -361,9 +361,9 @@ class CajaTransferenciaTest extends TestCase
             'sucursal_id' => $sucursal->id,
             'user_id' => $user->id,
             'monto_apertura' => 100,
-            'monto_cierre' => 829.50,
-            'total_sistema' => 1323.25,
-            'diferencia' => -768.25,
+            'monto_cierre' => 868.25,
+            'total_sistema' => 868.25,
+            'diferencia' => 0,
             'fecha_apertura' => now()->subDay(),
             'fecha_cierre' => now(),
             'estado' => 'CERRADA',
@@ -378,22 +378,14 @@ class CajaTransferenciaTest extends TestCase
             'referencia' => 'VENTAS-TINAJON',
         ]);
 
-        MovimientoCaja::create([
-            'caja_id' => $caja->id,
-            'user_id' => $user->id,
-            'tipo' => 'TRANSFERENCIA_JEFE',
-            'monto' => 593.75,
-            'fecha_movimiento' => now(),
-            'referencia' => 'TRANSFERENCIA-TINAJON',
-        ]);
-
         $this
             ->actingAs($user)
             ->get(route('cajas.index'))
             ->assertOk()
-            ->assertSee('Q 829.50')
+            ->assertSee('Q 868.25')
             ->assertSee('Q 0.00')
-            ->assertDontSee('Q -768.25');
+            ->assertDontSee('Q 1,323.25')
+            ->assertDontSee('Q -455.00');
     }
 
     private function giveSalesPermission(User $user): void
