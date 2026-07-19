@@ -104,6 +104,116 @@ class VentaAnulacionCajaTest extends TestCase
         $this->assertSame(8, $inventario->fresh()->existencia);
     }
 
+    public function test_migracion_repara_venta_anulada_historica_en_caja_cerrada_farmavida(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $sucursal = Sucursal::create([
+            'nombre' => 'FarmaVida Mazate',
+            'estado' => true,
+        ]);
+
+        $user = User::factory()->create()->forceFill([
+            'sucursal_id' => $sucursal->id,
+            'estado' => true,
+        ]);
+        $user->save();
+
+        $caja = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => 100,
+            'monto_cierre' => 181,
+            'total_sistema' => 181,
+            'diferencia' => 0,
+            'fecha_apertura' => now()->subDay(),
+            'fecha_cierre' => now(),
+            'estado' => 'CERRADA',
+        ]);
+
+        $venta = Venta::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'numero_factura' => 'FAC-1784417085',
+            'subtotal' => 81,
+            'descuento' => 0,
+            'total' => 81,
+            'estado' => 'ANULADA',
+            'anulada_por' => $user->id,
+            'fecha_anulacion' => now(),
+            'motivo_anulacion' => 'Anulacion historica',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'VENTA',
+            'monto' => 81,
+            'fecha_movimiento' => now()->subDay(),
+            'referencia' => $venta->numero_factura,
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $caja->id,
+            'user_id' => $user->id,
+            'tipo' => 'CIERRE',
+            'monto' => 181,
+            'fecha_movimiento' => now(),
+            'referencia' => 'CIERRE-HISTORICO',
+        ]);
+
+        $cajaSiguiente = Caja::create([
+            'sucursal_id' => $sucursal->id,
+            'user_id' => $user->id,
+            'monto_apertura' => 181,
+            'fecha_apertura' => now()->addDay(),
+            'estado' => 'ABIERTA',
+        ]);
+
+        MovimientoCaja::create([
+            'caja_id' => $cajaSiguiente->id,
+            'user_id' => $user->id,
+            'tipo' => 'APERTURA',
+            'monto' => 181,
+            'fecha_movimiento' => now()->addDay(),
+            'referencia' => 'APERTURA-HEREDADA',
+        ]);
+
+        $migration = require database_path('migrations/2026_07_19_000001_repair_farmavida_annulled_sale_cash_refund.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('movimiento_cajas', [
+            'caja_id' => $caja->id,
+            'tipo' => 'EGRESO',
+            'monto' => 81,
+            'referencia' => 'FAC-1784417085',
+        ]);
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $caja->id,
+            'monto_cierre' => 100,
+            'total_sistema' => 100,
+            'diferencia' => 0,
+        ]);
+
+        $this->assertDatabaseHas('movimiento_cajas', [
+            'caja_id' => $caja->id,
+            'tipo' => 'CIERRE',
+            'monto' => 100,
+        ]);
+
+        $this->assertDatabaseHas('cajas', [
+            'id' => $cajaSiguiente->id,
+            'monto_apertura' => 100,
+        ]);
+
+        $this->assertDatabaseHas('movimiento_cajas', [
+            'caja_id' => $cajaSiguiente->id,
+            'tipo' => 'APERTURA',
+            'monto' => 100,
+        ]);
+    }
+
     private function createSaleScenario(): array
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
