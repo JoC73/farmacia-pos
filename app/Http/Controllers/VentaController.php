@@ -429,6 +429,12 @@ MovimientoCaja::create([
                 ]);
             }
 
+            if (round($this->efectivoDisponibleCaja($caja), 2) < round((float) $venta->total, 2)) {
+                throw ValidationException::withMessages([
+                    'venta' => 'La caja no tiene efectivo suficiente para devolver esta venta. Revisa transferencias o egresos antes de anular.',
+                ]);
+            }
+
             foreach ($venta->detalles as $detalle) {
                 $inventario = Inventario::where('producto_id', $detalle->producto_id)
                     ->where('sucursal_id', $venta->sucursal_id)
@@ -464,10 +470,10 @@ MovimientoCaja::create([
             MovimientoCaja::create([
                 'caja_id' => $caja->id,
                 'user_id' => auth()->id(),
-                'tipo' => 'AJUSTE',
+                'tipo' => 'EGRESO',
                 'monto' => $venta->total,
                 'referencia' => $venta->numero_factura,
-                'descripcion' => 'Anulacion de venta: ' . $data['motivo_anulacion'],
+                'descripcion' => 'Devolucion por anulacion de venta: ' . $data['motivo_anulacion'],
             ]);
 
             $venta->update([
@@ -487,6 +493,23 @@ MovimientoCaja::create([
     private function authorizeSucursalAccess(?int $sucursalId): void
     {
         abort_unless(auth()->user()->canAccessSucursal($sucursalId), 403);
+    }
+
+    private function efectivoDisponibleCaja(Caja $caja): float
+    {
+        $ventas = (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->where('tipo', 'VENTA')
+            ->sum('monto');
+
+        $egresos = (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->where('tipo', 'EGRESO')
+            ->sum('monto');
+
+        $transferencias = (float) MovimientoCaja::where('caja_id', $caja->id)
+            ->where('tipo', 'TRANSFERENCIA_JEFE')
+            ->sum('monto');
+
+        return (float) $caja->monto_apertura + $ventas - $egresos - $transferencias;
     }
 
     private function availableProductsForSale(string $search = '', int $limit = 30)
